@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  CI: 'true'
+
+jobs:
+  test:
+    name: Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ windows-latest, ubuntu-latest, macos-latest ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET (8 + 10)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      # ML-DSA-65 (FIPS 204) on Linux requires OpenSSL >= 3.5. Ubuntu runners may
+      # ship an older OpenSSL; the ML-DSA *tests* skip at runtime when the backend
+      # is unavailable, so the suite stays green regardless. When OpenSSL >= 3.5 is
+      # present, the ML-DSA layer is exercised for real.
+      #
+      # TODO: pin a known OpenSSL >= 3.5 build here (side-by-side install + set
+      # the loader path) once a stable recipe is settled, to exercise the ML-DSA
+      # layer on Linux in CI as well as on Windows.
+      - name: Report OpenSSL version (Linux)
+        if: runner.os == 'Linux'
+        run: openssl version || true
+
+      - name: Setup Python (for vector drift check)
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Restore
+        run: dotnet restore PostQuantum.SecretSharing.sln
+
+      - name: Build (warnings as errors)
+        run: dotnet build PostQuantum.SecretSharing.sln -c Release --no-restore
+
+      - name: Test net8.0 (excludes bench)
+        run: dotnet test PostQuantum.SecretSharing.sln -c Release --no-build -f net8.0 --filter "Category!=bench"
+
+      - name: Test net10.0 (excludes bench; ML-DSA skips where unsupported)
+        run: dotnet test PostQuantum.SecretSharing.sln -c Release --no-build -f net10.0 --filter "Category!=bench"
+
+      # Regenerate the test vectors from the independent Python reference and fail
+      # if they differ from what's committed (C.1 drift guard).
+      - name: Vector regeneration drift check
+        run: |
+          python reference/generate_vectors.py
+          git diff --exit-code docs/test-vectors.json
+        shell: bash
+
+  pack:
+    name: Pack
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET (8 + 10)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Restore
+        run: dotnet restore src/PostQuantum.SecretSharing/PostQuantum.SecretSharing.csproj
+
+      # ContinuousIntegrationBuild=true is set automatically via Directory.Build.props
+      # when CI=true (see env above), enabling deterministic path mapping for
+      # reproducible builds.
+      #
+      # TODO (fast-follow): add reproducible-build attestation per
+      # REPRODUCIBLE-BUILDS.md once that document lands.
+      - name: Pack
+        run: dotnet pack src/PostQuantum.SecretSharing/PostQuantum.SecretSharing.csproj -c Release --no-restore -o artifacts
+
+      - name: Upload .nupkg
+        uses: actions/upload-artifact@v4
+        with:
+          name: nupkg
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg

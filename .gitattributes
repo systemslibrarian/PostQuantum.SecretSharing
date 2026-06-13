@@ -1,0 +1,7 @@
+# Normalize line endings for deterministic, cross-platform builds.
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.nupkg binary
+*.snupkg binary
