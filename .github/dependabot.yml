@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # Keep GitHub Actions pinned-by-SHA dependencies current (Dependabot updates the
+  # SHA and the # vX.Y.Z comment together).
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: [ "*" ]
+
+  # NuGet: build-only analyzers + SourceLink. The core ships with no runtime deps.
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      dotnet:
+        patterns: [ "*" ]

@@ -1,5 +1,10 @@
 # PostQuantum.SecretSharing
 
+[![CI](https://github.com/systemslibrarian/PostQuantum.SecretSharing/actions/workflows/ci.yml/badge.svg)](https://github.com/systemslibrarian/PostQuantum.SecretSharing/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/systemslibrarian/PostQuantum.SecretSharing/actions/workflows/codeql.yml/badge.svg)](https://github.com/systemslibrarian/PostQuantum.SecretSharing/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/systemslibrarian/PostQuantum.SecretSharing/badge)](https://scorecard.dev/viewer/?uri=github.com/systemslibrarian/PostQuantum.SecretSharing)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 **Your encrypted system is only as safe as the one key nobody knows where to keep.**
 
 Split one high-value secret into *N* shares so that any *K* of them rebuild it —
@@ -481,6 +486,8 @@ them. Treat it as a well-built primitive pending independent review. See
 - [`samples/`](samples) — five runnable samples: `SignerCustody` (authenticated 3-of-5 custody), `EnvelopeRecovery` (the wrap pattern, net8.0), `VaultUnseal` (Vault-style sealed service), `AspNetCoreDataProtection` (encrypt the DP key ring behind a quorum), and `pqss` (a real split/inspect/verify/combine/refresh CLI).
 - [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) — throughput numbers and constant-time evidence (and how to reproduce).
 - [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) — `.pqss` format-stability and SemVer policy.
+- [`docs/SUPPLY-CHAIN.md`](docs/SUPPLY-CHAIN.md) — build provenance, SBOM, reproducible builds, and how to verify a release yourself.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — build/test, the API-lock and banned-API gates, and the release ritual.
 - [`ROADMAP.md`](ROADMAP.md) — v1 / v1.x / v2 plan. [`CHANGELOG.md`](CHANGELOG.md) — release history.
 - [`SECURITY.md`](SECURITY.md) — how to report vulnerabilities.
 

@@ -62,10 +62,14 @@ trust to look at the two highest-risk files:
 
 - [ ] Enable GitHub private vulnerability reporting (Settings → Security) so
       `SECURITY.md`'s instructions actually work.
-- [ ] Turn on branch protection for `main` (require CI green).
-- [ ] Add a CI step (or accept the TODO already in `.github/workflows/ci.yml`) for
-      reproducible-build attestation later.
-- [ ] Consider a short README badge row (build status, NuGet version) once published.
+- [ ] Turn on branch protection for `main` (require CI green). Once on, the
+      OpenSSF Scorecard `Branch-Protection` check will start passing.
+- [ ] Enable GitHub Code scanning so the CodeQL and Scorecard SARIF uploads surface
+      in the Security tab (no code change needed — just toggle it on).
+- [x] Reproducible-build verification — **done** (CI `reproducible` job diffs the
+      assemblies; SLSA provenance attestation on `pack`).
+- [x] README badge row (CI, CodeQL, Scorecard, license) — **done**. Add a NuGet
+      version badge once the package is published.
 
 ---
 
