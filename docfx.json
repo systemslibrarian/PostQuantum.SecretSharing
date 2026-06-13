@@ -1,0 +1,36 @@
+{
+  "$schema": "https://raw.githubusercontent.com/dotnet/docfx/main/schemas/docfx.schema.json",
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "src/PostQuantum.SecretSharing",
+          "files": [ "PostQuantum.SecretSharing.csproj" ]
+        }
+      ],
+      "dest": "docfx/api",
+      "properties": {
+        "TargetFramework": "net8.0"
+      }
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "src": "docfx",
+        "files": [ "index.md", "toc.yml", "api/**.yml", "api/**.md" ]
+      }
+    ],
+    "resource": [
+      { "files": [ "icon.png" ] }
+    ],
+    "output": "_site",
+    "template": [ "default", "modern" ],
+    "globalMetadata": {
+      "_appName": "PostQuantum.SecretSharing",
+      "_appTitle": "PostQuantum.SecretSharing",
+      "_appFooter": "PostQuantum.SecretSharing — MIT licensed",
+      "_enableSearch": true
+    }
+  }
+}

@@ -1,0 +1,78 @@
+name: Fuzz
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '40 3 * * 3'   # weekly, Wednesday 03:40 UTC
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/PostQuantum.SecretSharing/Cbor/**'
+      - 'src/PostQuantum.SecretSharing/SecretShare.cs'
+      - 'fuzz/**'
+      - '.github/workflows/fuzz.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Coverage-guided fuzz (.pqss parser)
+    runs-on: ubuntu-latest
+    env:
+      FUZZ_SECONDS: '180'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5.3.0
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install clang (libFuzzer driver)
+        run: sudo apt-get update && sudo apt-get install -y clang
+
+      - name: Install SharpFuzz tool
+        run: dotnet tool install --global SharpFuzz.CommandLine
+
+      - name: Build fuzz harness
+        run: dotnet build fuzz/PostQuantum.SecretSharing.Fuzz/PostQuantum.SecretSharing.Fuzz.csproj -c Release -o fuzzbin
+
+      # Seed BEFORE instrumenting so the seed generator runs against a clean assembly.
+      - name: Generate seed corpus
+        run: dotnet fuzzbin/PostQuantum.SecretSharing.Fuzz.dll --seed corpus
+
+      - name: Instrument the library assembly
+        run: |
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          sharpfuzz fuzzbin/PostQuantum.SecretSharing.dll
+
+      - name: Build libfuzzer-dotnet driver
+        run: |
+          curl -sSL https://raw.githubusercontent.com/Metalnem/libfuzzer-dotnet/master/libfuzzer-dotnet.cc -o libfuzzer-dotnet.cc
+          clang -g -O2 -fsanitize=fuzzer libfuzzer-dotnet.cc -o libfuzzer-dotnet
+
+      - name: Fuzz
+        run: |
+          ./libfuzzer-dotnet \
+            --target_path="$(command -v dotnet)" \
+            --target_arg="$PWD/fuzzbin/PostQuantum.SecretSharing.Fuzz.dll" \
+            -timeout=25 -rss_limit_mb=4096 -print_final_stats=1 \
+            -max_total_time="$FUZZ_SECONDS" \
+            corpus
+
+      - name: Upload crash repros
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fuzz-crashes
+          path: |
+            crash-*
+            oom-*
+            timeout-*
+          if-no-files-found: ignore

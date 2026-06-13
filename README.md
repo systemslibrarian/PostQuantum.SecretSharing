@@ -485,6 +485,7 @@ them. Treat it as a well-built primitive pending independent review. See
 - [`docs/test-vectors.md`](docs/test-vectors.md) — cross-implementation test vectors.
 - [`samples/`](samples) — five runnable samples: `SignerCustody` (authenticated 3-of-5 custody), `EnvelopeRecovery` (the wrap pattern, net8.0), `VaultUnseal` (Vault-style sealed service), `AspNetCoreDataProtection` (encrypt the DP key ring behind a quorum), and `pqss` (a real split/inspect/verify/combine/refresh CLI).
 - [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) — throughput numbers and constant-time evidence (and how to reproduce).
+- [`fuzz/`](fuzz) — coverage-guided (SharpFuzz + libFuzzer) fuzzing of the `.pqss` parser; runs in CI.
 - [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) — `.pqss` format-stability and SemVer policy.
 - [`docs/SUPPLY-CHAIN.md`](docs/SUPPLY-CHAIN.md) — build provenance, SBOM, reproducible builds, and how to verify a release yourself.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — build/test, the API-lock and banned-API gates, and the release ritual.

@@ -18,6 +18,19 @@ __pycache__/
 *.pyc
 .venv/
 
+# DocFX (generated API metadata + rendered site)
+_site/
+docfx/api/
+
+# Fuzzing (driver, instrumented output, corpus, crash repros)
+fuzzbin/
+libfuzzer-dotnet
+libfuzzer-dotnet.cc
+corpus/
+crash-*
+oom-*
+timeout-*
+
 # OS
 .DS_Store
 Thumbs.db

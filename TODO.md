@@ -66,6 +66,9 @@ trust to look at the two highest-risk files:
       OpenSSF Scorecard `Branch-Protection` check will start passing.
 - [ ] Enable GitHub Code scanning so the CodeQL and Scorecard SARIF uploads surface
       in the Security tab (no code change needed — just toggle it on).
+- [ ] Enable GitHub Pages (Settings → Pages → Source: GitHub Actions) so the `Docs`
+      workflow publishes the DocFX API site. Until then the workflow builds but the
+      deploy step has nowhere to go.
 - [x] Reproducible-build verification — **done** (CI `reproducible` job diffs the
       assemblies; SLSA provenance attestation on `pack`).
 - [x] README badge row (CI, CodeQL, Scorecard, license) — **done**. Add a NuGet
