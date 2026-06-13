@@ -1,0 +1,9 @@
+#nullable enable
+PostQuantum.SecretSharing.MlDsa65ShareAuthenticator
+PostQuantum.SecretSharing.MlDsa65ShareAuthenticator.Dispose() -> void
+PostQuantum.SecretSharing.MlDsa65ShareAuthenticator.ExportPrivateKey() -> System.ReadOnlyMemory<byte>
+PostQuantum.SecretSharing.MlDsa65ShareAuthenticator.Kind.get -> PostQuantum.SecretSharing.ShareAuthenticationKind
+PostQuantum.SecretSharing.MlDsa65ShareAuthenticator.PublicKey.get -> System.ReadOnlyMemory<byte>
+PostQuantum.SecretSharing.MlDsa65ShareAuthenticator.Sign(System.ReadOnlySpan<byte> canonicalShareBytes) -> byte[]!
+static PostQuantum.SecretSharing.MlDsa65ShareAuthenticator.Generate() -> PostQuantum.SecretSharing.MlDsa65ShareAuthenticator!
+static PostQuantum.SecretSharing.MlDsa65ShareAuthenticator.ImportPrivateKey(System.ReadOnlySpan<byte> privateKey) -> PostQuantum.SecretSharing.MlDsa65ShareAuthenticator!

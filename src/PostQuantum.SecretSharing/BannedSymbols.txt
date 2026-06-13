@@ -1,0 +1,18 @@
+## Banned APIs for PostQuantum.SecretSharing (enforced by Microsoft.CodeAnalysis.BannedApiAnalyzers, RS0030).
+## Each line: <DocumentationCommentId>;<reason shown in the diagnostic>.
+## This turns the "no weak RNG / no weak primitives" discipline the docs describe into a compile error.
+
+## --- Randomness: a secret-sharing library must never use a non-cryptographic RNG ---
+T:System.Random;Use System.Security.Cryptography.RandomNumberGenerator. System.Random is not cryptographically secure and would silently destroy secrecy.
+
+## --- Obsolete / weak RNG ---
+T:System.Security.Cryptography.RNGCryptoServiceProvider;Obsolete. Use System.Security.Cryptography.RandomNumberGenerator.
+
+## --- Weak hashes: this library uses SHA-256/HKDF only ---
+T:System.Security.Cryptography.MD5;Weak hash. Use SHA-256 / HKDF-SHA256.
+T:System.Security.Cryptography.SHA1;Weak hash. Use SHA-256 / HKDF-SHA256.
+
+## --- Weak / legacy symmetric ciphers: the wrap path uses AES-256-GCM only ---
+T:System.Security.Cryptography.DES;Broken cipher. The wrap path uses AES-256-GCM.
+T:System.Security.Cryptography.TripleDES;Legacy cipher. The wrap path uses AES-256-GCM.
+T:System.Security.Cryptography.RC2;Weak cipher. The wrap path uses AES-256-GCM.

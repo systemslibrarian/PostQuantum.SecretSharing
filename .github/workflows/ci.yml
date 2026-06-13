@@ -53,6 +53,12 @@ jobs:
       - name: Build (warnings as errors)
         run: dotnet build PostQuantum.SecretSharing.sln -c Release --no-restore
 
+      # Formatting / analyzer-style gate: fails if code is not canonically formatted.
+      # Runs once (Linux) — formatting is platform-invariant.
+      - name: Verify formatting (dotnet format)
+        if: runner.os == 'Linux'
+        run: dotnet format PostQuantum.SecretSharing.sln --verify-no-changes --no-restore
+
       - name: Test net8.0 (excludes bench)
         run: dotnet test PostQuantum.SecretSharing.sln -c Release --no-build -f net8.0 --filter "Category!=bench&Category!=timing"
 
