@@ -1,0 +1,50 @@
+# Changelog
+
+All notable changes to this project are documented here. The format follows
+[Keep a Changelog](https://keepachangelog.com/), and the project aims to follow
+[Semantic Versioning](https://semver.org/) once it reaches `1.0.0` (see
+[COMPATIBILITY.md](docs/COMPATIBILITY.md)).
+
+## [Unreleased]
+
+_No unreleased changes._
+
+## [1.0.0-rc.1] — 2026-06-12
+
+First release candidate. The `.pqss` format is **v1** and considered stable for
+the v1 line (see COMPATIBILITY.md).
+
+### Added
+
+- **Core scheme:** Shamir's Secret Sharing over GF(2⁸) with constant-time,
+  table-free field math (`ShamirSecretSharing.Split` / `Reconstruct`,
+  exactly-`k` reconstruction, `K=1` forbidden).
+- **`.pqss` format:** strict, canonical, hand-rolled CBOR reader/writer; fully
+  specified in [SPEC.md](docs/SPEC.md) with a test-pinned worked example.
+- **Integrity:** HKDF-SHA256 check value, constant-time comparison.
+- **Memory hygiene:** `ZeroizingBuffer` — pinned object heap, deterministic
+  zeroization, and best-effort page-locking (`VirtualLock`/`mlock`,
+  `IsMemoryLocked`).
+- **Authentication (net10.0):** optional ML-DSA-65 (FIPS 204) dealer signatures
+  via `IShareAuthenticator` / `MlDsa65ShareAuthenticator`, with public-key
+  pinning at reconstruction and per-share `SecretShare.VerifySignature`.
+- **Helpers:** `WrappedSecret` (KEK-wrap pattern for low-entropy/large secrets),
+  `ShamirSecretSharing.Refresh` (quorum-mediated custody rotation),
+  `DealerCommitment` (weak commitment to the intended secret).
+- **Exceptions:** fail-closed hierarchy (`ShareFormatException`,
+  `SharePolicyException`, `ShareAuthenticationException`,
+  `ShareConsistencyException`).
+- **Verification:** independent Python reference + deterministic cross-impl test
+  vectors; fuzz/property tests over the CBOR layer; constant-time timing evidence.
+- **Tooling & docs:** the `pqss` CLI (`split`/`inspect`/`verify`/`combine`/
+  `refresh`, armored text, `--json`, `--dry-run`); four samples; and the full
+  documentation set (SPEC, THREAT-MODEL, KNOWN-GAPS, OPERATIONS, BENCHMARKS,
+  test-vectors).
+
+### Security notes
+
+- Not independently audited; carefully engineered. See [KNOWN-GAPS.md](docs/KNOWN-GAPS.md).
+- No Verifiable Secret Sharing in v1 (malicious dealer is out of scope; v2 goal).
+
+[Unreleased]: https://github.com/systemslibrarian/PostQuantum.SecretSharing/compare/v1.0.0-rc.1...HEAD
+[1.0.0-rc.1]: https://github.com/systemslibrarian/PostQuantum.SecretSharing/releases/tag/v1.0.0-rc.1

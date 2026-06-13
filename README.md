@@ -477,7 +477,10 @@ them. Treat it as a well-built primitive pending independent review. See
 - [`docs/KNOWN-GAPS.md`](docs/KNOWN-GAPS.md) — real limitations, including the unflattering ones.
 - [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — trustee ceremony guide.
 - [`docs/test-vectors.md`](docs/test-vectors.md) — cross-implementation test vectors.
-- [`samples/`](samples) — four runnable samples: `SignerCustody` (authenticated 3-of-5 custody), `EnvelopeRecovery` (the wrap pattern, net8.0), `VaultUnseal` (Vault-style sealed service), and `pqss` (a real split/inspect/verify/combine/refresh CLI).
+- [`samples/`](samples) — five runnable samples: `SignerCustody` (authenticated 3-of-5 custody), `EnvelopeRecovery` (the wrap pattern, net8.0), `VaultUnseal` (Vault-style sealed service), `AspNetCoreDataProtection` (encrypt the DP key ring behind a quorum), and `pqss` (a real split/inspect/verify/combine/refresh CLI).
+- [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) — throughput numbers and constant-time evidence (and how to reproduce).
+- [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) — `.pqss` format-stability and SemVer policy.
+- [`ROADMAP.md`](ROADMAP.md) — v1 / v1.x / v2 plan. [`CHANGELOG.md`](CHANGELOG.md) — release history.
 - [`SECURITY.md`](SECURITY.md) — how to report vulnerabilities.
 
 ---

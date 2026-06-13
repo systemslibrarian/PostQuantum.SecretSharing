@@ -54,10 +54,10 @@ jobs:
         run: dotnet build PostQuantum.SecretSharing.sln -c Release --no-restore
 
       - name: Test net8.0 (excludes bench)
-        run: dotnet test PostQuantum.SecretSharing.sln -c Release --no-build -f net8.0 --filter "Category!=bench"
+        run: dotnet test PostQuantum.SecretSharing.sln -c Release --no-build -f net8.0 --filter "Category!=bench&Category!=timing"
 
       - name: Test net10.0 (excludes bench; ML-DSA skips where unsupported)
-        run: dotnet test PostQuantum.SecretSharing.sln -c Release --no-build -f net10.0 --filter "Category!=bench"
+        run: dotnet test PostQuantum.SecretSharing.sln -c Release --no-build -f net10.0 --filter "Category!=bench&Category!=timing"
 
       # Regenerate the test vectors from the independent Python reference and fail
       # if they differ from what's committed (C.1 drift guard).

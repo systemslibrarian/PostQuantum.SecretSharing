@@ -105,3 +105,22 @@ dotnet run --project samples/VaultUnseal
 
 Demonstrates: the wrap pattern applied to service config, a sealed/unsealed
 lifecycle, exactly-`k` unseal, sub-quorum refusal, and key zeroization on re-seal.
+
+---
+
+## 5. `AspNetCoreDataProtection` — encrypt the DP key ring behind a quorum (net8.0)
+
+A real framework integration. ASP.NET Core Data Protection encrypts its key ring
+(the keys behind auth cookies, antiforgery tokens, etc.) **at rest** via a custom
+`IXmlEncryptor`/`IXmlDecryptor`. Here the key-encryption key used for that at-rest
+encryption is itself split with PostQuantum.SecretSharing: the app cannot read its
+own key ring until a quorum of operators unseals the KEK. A stolen disk plus fewer
+than `K` shares is inert.
+
+```bash
+dotnet run --project samples/AspNetCoreDataProtection
+```
+
+Demonstrates: a custom DP at-rest encryptor keyed by a quorum-reconstructed KEK,
+key-ring encryption verified on disk, and recovery across a simulated restart by a
+*different* quorum.
