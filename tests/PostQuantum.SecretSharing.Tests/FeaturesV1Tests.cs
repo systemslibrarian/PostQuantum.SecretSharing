@@ -146,6 +146,18 @@ public class DealerCommitmentTests
     }
 }
 
+public class VerifySignatureTests
+{
+    [Fact]
+    public void UnauthenticatedShare_VerifySignature_IsFalse()
+    {
+        // No ML-DSA required: Authentication == None short-circuits to false.
+        SecretShare[] shares = ShamirSecretSharing.Split(new byte[16], new SharePolicy(2, 3));
+        Assert.False(shares[0].VerifySignature());
+        Assert.False(shares[0].VerifySignature(new byte[1952]));
+    }
+}
+
 public class ZeroizingBufferLockTests
 {
     [Fact]

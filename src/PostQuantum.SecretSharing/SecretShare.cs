@@ -106,6 +106,32 @@ public sealed class SecretShare
         Threshold, TotalShares, ShareIndex, _splitId, SecretLength, _shareData,
         _checkValue, Authentication, _dealerPublicKey, _signature, includeSignature: true);
 
+    /// <summary>
+    /// Verifies this single share's dealer signature, <em>without</em> reconstructing
+    /// anything — useful for checking shares one at a time (e.g. as trustees present
+    /// them) before a quorum exists.
+    /// </summary>
+    /// <param name="expectedDealerPublicKey">
+    /// If supplied, the share's embedded dealer key must equal it (your pin). If
+    /// omitted, the signature is checked against the <em>embedded</em> key, which is
+    /// self-attestation, not authority — pass the pin for a real guarantee.
+    /// </param>
+    /// <returns>
+    /// <c>true</c> if the share is ML-DSA-65-authenticated, matches the pinned key
+    /// (when given), and its signature verifies; <c>false</c> for an unauthenticated
+    /// share, a key mismatch, or a bad signature.
+    /// </returns>
+    /// <exception cref="PlatformNotSupportedException">Where ML-DSA-65 is unavailable (net8.0 / unsupported platforms).</exception>
+    public bool VerifySignature(ReadOnlyMemory<byte>? expectedDealerPublicKey = null)
+    {
+        if (Authentication == ShareAuthenticationKind.None)
+            return false;
+        if (expectedDealerPublicKey.HasValue &&
+            !_dealerPublicKey.AsSpan().SequenceEqual(expectedDealerPublicKey.Value.Span))
+            return false;
+        return ShareSignatureVerifier.Verify(Authentication, _dealerPublicKey, GetSignedPayload(), _signature);
+    }
+
     private static byte[] EncodeCore(
         int threshold, int totalShares, int shareIndex, byte[] splitId, int secretLength,
         byte[] shareData, byte[] checkValue, ShareAuthenticationKind authentication,

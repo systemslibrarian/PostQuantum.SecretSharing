@@ -86,3 +86,22 @@ signing + pinning, one-time dealer commitments, friendly fail-closed error
 reporting, and metadata inspection that exposes nothing secret.
 
 Run `dotnet run --project samples/PqssCli -- --help` for full usage.
+
+---
+
+## 4. `VaultUnseal` — break-glass for a "sealed" service (net8.0)
+
+An ecosystem-integration pattern: a service holds its sensitive configuration
+(e.g. a production DB connection string) encrypted under a master key it does
+**not** keep. On startup it is *sealed* — it has the ciphertext but cannot read
+it. It becomes *unsealed* only when a quorum of operators presents their shares;
+the master key is then reconstructed in memory, the config decrypted and used,
+and the key wiped. Mirrors HashiCorp Vault's Shamir unseal, but with
+information-theoretic secrecy below the quorum and no ML-DSA dependency.
+
+```bash
+dotnet run --project samples/VaultUnseal
+```
+
+Demonstrates: the wrap pattern applied to service config, a sealed/unsealed
+lifecycle, exactly-`k` unseal, sub-quorum refusal, and key zeroization on re-seal.

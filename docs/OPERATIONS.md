@@ -110,3 +110,117 @@ out, it exists. If a trustee departs or a share may be compromised:
 key, re-splits it 3-of-5 among the new custody set, updates systems to trust the
 new key, and retires the old key. The departed Sysadmin's old share now unlocks
 only a key nothing trusts anymore.
+
+---
+
+## 6. A concrete ceremony — splitting a code-signing key (3-of-5) with `pqss`
+
+This is a complete, runnable script using the `pqss` sample CLI. Adapt paths and
+custodians to your environment. Do it on an **offline dealer machine**.
+
+### Pre-ceremony (preparation)
+
+- [ ] Convene the required people / authority; confirm the quorum policy in writing.
+- [ ] Prepare the offline dealer machine (known-good boot media, no network).
+- [ ] Prepare labeled, tamper-evident media for each custodian.
+- [ ] Have the custody log (template below) ready to fill in.
+
+### Ceremony (split)
+
+```bash
+# 1. Place (or generate) the signing key on the dealer machine, e.g. key.bin.
+
+# 2. Split 3-of-5, dealer-signed, ASCII-armored (printable), with a commitment.
+pqss split key.bin --k 3 --n 5 --out ./shares \
+     --sign --sk-out ./dealer.key --armor --commit-out ./key.commit
+
+# 3. Record the dealer public-key fingerprint and the commitment fingerprint
+#    (printed by the command) into the custody log and your config management.
+```
+
+- [ ] **Pin the dealer public key fingerprint** out-of-band (read it aloud; record
+      it in config management). This is the authority for all future recoveries.
+- [ ] **Publish the commitment** (`key.commit`) to every custodian / a broadcast
+      channel. It lets any future quorum confirm they recovered the right secret.
+- [ ] Decide the fate of the dealer **private key** (`dealer.key`): destroy it if
+      you will never re-sign, or seal it (HSM/offline) if you may re-split.
+
+### Verify before distribution
+
+```bash
+# Confirm every share is well-formed and correctly signed (no quorum needed).
+pqss verify ./shares/share-*.pqss.txt --pub ./shares/dealer.pub
+```
+
+- [ ] All shares report `OK (signature verified)` and `split consistency : OK`.
+
+### Distribute
+
+- [ ] Write **one** share per custodian to its labeled medium (never two to one
+      person). Fill in the custody log. Have each custodian sign for receipt.
+- [ ] Wipe the dealer machine's working storage (key.bin, shares, dealer.key if
+      destroying).
+
+### Post-ceremony
+
+- [ ] Store the custody log securely; distribute custodians across people *and*
+      locations so no single incident takes out a quorum.
+- [ ] Schedule a **recovery rehearsal** (next section).
+
+---
+
+## 7. Rehearse recovery without exposing the secret (dry run)
+
+You should periodically prove a quorum can still recover — *without* materializing
+the secret. `pqss combine --dry-run` reconstructs, checks the commitment, prints a
+fingerprint, and writes nothing.
+
+```bash
+pqss combine ./from-custodian-1.pqss.txt ./from-custodian-3.pqss.txt ./from-custodian-4.pqss.txt \
+     --pub ./dealer.pub --commit ./key.commit --dry-run
+```
+
+- [ ] Output says `DRY RUN OK` and `commitment verified`.
+- [ ] The `secret fingerprint (sha256)` matches previous rehearsals (it is stable
+      for the same secret; it does **not** reveal the secret).
+
+When you must recover for real, drop `--dry-run` and add `--out recovered.key`.
+Use the key for the immediate task only, then securely delete the file.
+
+---
+
+## 8. Printable templates
+
+### Custody log
+
+```
+PostQuantum.SecretSharing — Custody Log
+Secret description : ____________________________   Policy: ____-of-____
+splitId            : ________________________________________________
+Dealer key fp      : ________________   Commitment fp: ________________
+Ceremony date      : __________   Conducted by: ____________________
+
+ Idx | Custodian (name)      | Location / medium        | Issued (date) | Received (sign)
+-----+-----------------------+--------------------------+---------------+----------------
+  1  |                       |                          |               |
+  2  |                       |                          |               |
+  3  |                       |                          |               |
+  4  |                       |                          |               |
+  5  |                       |                          |               |
+```
+
+### Share medium label
+
+```
++--------------------------------------------------+
+|  PQSS SHARE  —  CONFIDENTIAL                      |
+|                                                  |
+|  Secret : ____________________________________   |
+|  Share index : ____  of  ____   (need ____)      |
+|  splitId prefix : ________                        |
+|  Custodian : ________________________________     |
+|  Issued : __________                              |
+|                                                  |
+|  Do NOT photograph or copy. Report loss at once. |
++--------------------------------------------------+
+```

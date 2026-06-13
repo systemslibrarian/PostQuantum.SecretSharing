@@ -60,6 +60,15 @@ def build():
         ("k2n255_len1", 2, 255, 1),
         ("k3n5_len4096", 3, 5, 4096),
         ("k2n3_len32", 2, 3, 32),
+        # --- extended coverage ---
+        ("k2n2_len16", 2, 2, 16),       # minimal n == k
+        ("k7n10_len32", 7, 10, 32),     # mid-range quorum
+        ("k10n10_len8", 10, 10, 8),     # all shares required
+        ("k4n7_len200", 4, 7, 200),     # non-power-of-two length
+        ("k2n255_len32", 2, 255, 32),   # max fan-out
+        ("k128n255_len4", 128, 255, 4), # large threshold
+        ("k3n5_len65", 3, 5, 65),       # crosses the 64-byte boundary
+        ("k254n255_len16", 254, 255, 16), # max threshold (k = n-1)
     ]
 
     split_vectors = []
@@ -85,6 +94,13 @@ def build():
         ("k3n5_len32", [1, 3, 5]),
         ("k5n5_len32", [1, 2, 3, 4, 5]),
         ("k3n5_len4096", [2, 4, 5]),
+        # --- extended coverage: exercise non-trivial x-coordinate subsets ---
+        ("k2n2_len16", [1, 2]),
+        ("k7n10_len32", [2, 3, 5, 6, 8, 9, 10]),
+        ("k4n7_len200", [1, 4, 5, 7]),
+        ("k2n255_len32", [17, 200]),
+        ("k128n255_len4", list(range(1, 129))),
+        ("k254n255_len16", list(range(1, 255))),
     ]
     by_label = {sv["label"]: sv for sv in split_vectors}
     for label, xs in recon_specs:
@@ -105,6 +121,8 @@ def build():
     check_specs = [
         ("cv_32zero", bytes(32), bytes(range(16))),
         ("cv_mixed", _fixed_bytes("cv:secret", 32), _fixed_bytes("cv:salt", 16)),
+        ("cv_1byte", bytes([0xA5]), _fixed_bytes("cv:salt2", 16)),
+        ("cv_long", _fixed_bytes("cv:secret:long", 200), bytes([0xFF] * 16)),
     ]
     check_vectors = []
     for label, secret, split_id in check_specs:

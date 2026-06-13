@@ -183,6 +183,24 @@ public class MlDsaTests
             () => ShamirSecretSharing.Reconstruct(new[] { refreshed[0], refreshed[2] }, oldDealer.PublicKey));
     }
 
+    [SkippableFact]
+    public void VerifySignature_PerShare_Behaves()
+    {
+        Skip.IfNot(MLDsa.IsSupported, "ML-DSA-65 not supported on this platform.");
+
+        using var dealer = MlDsa65ShareAuthenticator.Generate();
+        using var other = MlDsa65ShareAuthenticator.Generate();
+        SecretShare[] shares = ShamirSecretSharing.Split(Secret, new SharePolicy(2, 3), dealer);
+
+        // Valid against the correct pin, and against the embedded key (self-attestation).
+        Assert.True(shares[0].VerifySignature(dealer.PublicKey));
+        Assert.True(shares[0].VerifySignature());
+        // Wrong pin rejected.
+        Assert.False(shares[0].VerifySignature(other.PublicKey));
+        // Tampered share rejected.
+        Assert.False(TamperShareData(shares[0]).VerifySignature(dealer.PublicKey));
+    }
+
     private static SecretShare TamperShareData(SecretShare s)
     {
         byte[] badY = s.ShareData.ToArray();

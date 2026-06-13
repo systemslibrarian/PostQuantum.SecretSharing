@@ -335,6 +335,32 @@ pin you obtained out-of-band proves the shares came from *your* dealer.
 
 ---
 
+## How it compares
+
+Honest positioning. "✅/❌" describe *this library's* choices, not a value judgment
+of the alternatives — each tool solves a different problem.
+
+| Capability | This library | Passphrase-encrypt a file | Naive XOR split | Vault's Shamir (unseal) | Typical generic Shamir lib |
+|---|:--:|:--:|:--:|:--:|:--:|
+| True `K`-of-`N` threshold (`K < N`) | ✅ | ❌ | ❌ (needs *all* parts) | ✅ | ✅ |
+| Information-theoretic secrecy below quorum | ✅ | ❌ (brute-forceable) | ✅ | ✅ | usually ✅ |
+| Survives quantum adversaries (secrecy) | ✅ | ❌ (KDF/cipher assumptions) | ✅ | ✅ | usually ✅ |
+| Constant-time, table-free field math | ✅ | n/a | n/a | — | often ❌ (log tables) |
+| Authenticated shares (tamper/substitution) | ✅ ML-DSA-65 | n/a | ❌ | ❌ | usually ❌ |
+| Strict, canonical, self-describing share format | ✅ `.pqss` | n/a | ❌ | partial | varies |
+| Pinned + zeroized + page-locked secret memory | ✅ | ❌ | ❌ | — | rarely |
+| Built-in low-entropy wrap helper | ✅ | n/a | ❌ | n/a | ❌ |
+| Ceremony tooling + operations guide | ✅ CLI + docs | ❌ | ❌ | ✅ | ❌ |
+| Verifiable Secret Sharing (malicious dealer) | ❌ *(v2)* | n/a | ❌ | ❌ | rarely |
+| Independently audited | ❌ *(honest)* | varies | n/a | ✅ | varies |
+
+Where we deliberately **win**: memory hygiene, constant-time field math, a strict
+format we control, post-quantum share authentication, and first-class ceremony
+support. Where we **don't (yet)**: no VSS, and no independent audit — both stated
+plainly rather than glossed over.
+
+---
+
 ## Platform matrix
 
 The **core has no platform blockers**. The Shamir engine, the CBOR codec, the
@@ -451,7 +477,7 @@ them. Treat it as a well-built primitive pending independent review. See
 - [`docs/KNOWN-GAPS.md`](docs/KNOWN-GAPS.md) — real limitations, including the unflattering ones.
 - [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — trustee ceremony guide.
 - [`docs/test-vectors.md`](docs/test-vectors.md) — cross-implementation test vectors.
-- [`samples/`](samples) — three runnable samples: `SignerCustody` (authenticated 3-of-5 custody), `EnvelopeRecovery` (the wrap pattern, net8.0), and `pqss` (a real split/inspect/combine CLI).
+- [`samples/`](samples) — four runnable samples: `SignerCustody` (authenticated 3-of-5 custody), `EnvelopeRecovery` (the wrap pattern, net8.0), `VaultUnseal` (Vault-style sealed service), and `pqss` (a real split/inspect/verify/combine/refresh CLI).
 - [`SECURITY.md`](SECURITY.md) — how to report vulnerabilities.
 
 ---
