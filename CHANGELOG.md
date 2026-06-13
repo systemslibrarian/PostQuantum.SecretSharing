@@ -7,14 +7,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.0.0-rc.2] — 2026-06-13
+
 ### Changed
 
-- **Packaging / docs links.** Converted the packaged READMEs to absolute GitHub URLs
+- **Packaging / docs links.** Converted the packaged README to absolute GitHub URLs
   so documentation links work on the nuget.org package page (relative links resolved to
-  `nuget.org/...` and 404'd). Added `PackageProjectUrl` so every package links back to the
-  repository. The VSS package README now includes a quick example and links to the
-  runnable `MaliciousDealerDetected` sample. VSS bumped to `2.0.0-preview.2` to publish
-  these (nuget.org package versions are immutable).
+  `nuget.org/...` and 404'd). Added `PackageProjectUrl` so the package links back to the
+  repository, and switched to the shared **PQ icon** (128×128 PNG). The companion VSS
+  package README gained a quick example and a link to the runnable
+  `MaliciousDealerDetected` sample. (The opt-in VSS package is versioned separately;
+  current `2.0.0-preview.2`.)
 
 ### Added
 
@@ -88,5 +91,6 @@ the v1 line (see COMPATIBILITY.md).
 - Not independently audited; carefully engineered. See [KNOWN-GAPS.md](docs/KNOWN-GAPS.md).
 - No Verifiable Secret Sharing in v1 (malicious dealer is out of scope; v2 goal).
 
-[Unreleased]: https://github.com/systemslibrarian/PostQuantum.SecretSharing/compare/v1.0.0-rc.1...HEAD
+[Unreleased]: https://github.com/systemslibrarian/PostQuantum.SecretSharing/compare/v1.0.0-rc.2...HEAD
+[1.0.0-rc.2]: https://github.com/systemslibrarian/PostQuantum.SecretSharing/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/systemslibrarian/PostQuantum.SecretSharing/releases/tag/v1.0.0-rc.1

@@ -21,7 +21,7 @@ backup is a single point of failure or a single point of compromise.
 ```
 
 ```bash
-dotnet add package PostQuantum.SecretSharing --version 1.0.0-rc.1
+dotnet add package PostQuantum.SecretSharing --version 1.0.0-rc.2
 ```
 
 ```csharp
@@ -506,7 +506,7 @@ them. Treat it as a well-built primitive pending independent review. See
 
 ## Status & roadmap
 
-**Current release: `1.0.0-rc.1`.** The information-theoretic core and the
+**Current release: `1.0.0-rc.2`.** The information-theoretic core and the
 engineering around it are feature-complete; the API and the `.pqss` format are
 considered stable for the RC line and will not change without a SemVer signal.
 
