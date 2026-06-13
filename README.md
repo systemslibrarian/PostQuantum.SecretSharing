@@ -554,7 +554,7 @@ side channels and process memory dumps.
 - [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — trustee ceremony guide.
 - [`docs/CASE-STUDY-signing-key.md`](docs/CASE-STUDY-signing-key.md) — a verified, reproducible ceremony protecting a code-signing key (with byte-identical + signature proofs).
 - [`docs/test-vectors.md`](docs/test-vectors.md) — cross-implementation test vectors.
-- [`samples/`](samples) — five runnable samples: `SignerCustody` (authenticated 3-of-5 custody), `EnvelopeRecovery` (the wrap pattern, net8.0), `VaultUnseal` (Vault-style sealed service), `AspNetCoreDataProtection` (encrypt the DP key ring behind a quorum), and `pqss` (a real split/inspect/verify/combine/refresh CLI).
+- [`samples/`](samples) — six runnable samples: `SignerCustody` (authenticated 3-of-5 custody), `EnvelopeRecovery` (the wrap pattern, net8.0), `VaultUnseal` (Vault-style sealed service), `AspNetCoreDataProtection` (encrypt the DP key ring behind a quorum), `MaliciousDealerDetected` (Verifiable Secret Sharing catching an inconsistent dealer, net8.0), and `pqss` (a real split/inspect/verify/combine/refresh CLI).
 - [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) — throughput numbers and constant-time evidence (and how to reproduce).
 - [`fuzz/`](fuzz) — coverage-guided (SharpFuzz + libFuzzer) fuzzing of the `.pqss` parser; runs in CI.
 - [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) — `.pqss` format-stability and SemVer policy.
