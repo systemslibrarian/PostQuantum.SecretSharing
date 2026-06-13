@@ -5,7 +5,8 @@
 Detect a *malicious dealer* who hands inconsistent shares to different trustees, so
 every quorum is guaranteed to reconstruct the same secret.
 
-> **Preview, unaudited new cryptography.** Ships as `2.0.0-preview.x`. See the honest
+> **Preview, unaudited new cryptography.** Ships as a `2.x` prerelease
+> (`2.0.1-preview.x`). See the honest
 > tradeoff below and the
 > [design doc](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md).
 

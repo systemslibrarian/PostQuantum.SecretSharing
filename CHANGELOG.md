@@ -7,6 +7,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.0.1-preview.1] — 2026-06-13
+
+### Changed
+
+- **Unified (lockstep) versioning across both packages.** The core
+  `PostQuantum.SecretSharing` and the opt-in `PostQuantum.SecretSharing.Vss`
+  packages now share a single version line, starting at `2.0.1-preview.1`, so
+  every release of one has a matching release of the other. The core package
+  version moves from `1.0.0-rc.2` to `2.0.1-preview.1` **solely** to adopt this
+  shared line — there is **no** breaking public-API change and **no** `.pqss`
+  format change. The on-disk core `.pqss` format remains **v1**; the wire format
+  and the package/API version are versioned independently (see
+  [COMPATIBILITY.md](docs/COMPATIBILITY.md)). Both packages stay prerelease: the
+  VSS layer is still preview-quality, unaudited new crypto, and the core has not
+  yet completed its path to a stable release (independent review + dogfooding).
+
 ## [1.0.0-rc.2] — 2026-06-13
 
 ### Changed
@@ -91,6 +107,7 @@ the v1 line (see COMPATIBILITY.md).
 - Not independently audited; carefully engineered. See [KNOWN-GAPS.md](docs/KNOWN-GAPS.md).
 - No Verifiable Secret Sharing in v1 (malicious dealer is out of scope; v2 goal).
 
-[Unreleased]: https://github.com/systemslibrarian/PostQuantum.SecretSharing/compare/v1.0.0-rc.2...HEAD
+[Unreleased]: https://github.com/systemslibrarian/PostQuantum.SecretSharing/compare/v2.0.1-preview.1...HEAD
+[2.0.1-preview.1]: https://github.com/systemslibrarian/PostQuantum.SecretSharing/compare/v1.0.0-rc.2...v2.0.1-preview.1
 [1.0.0-rc.2]: https://github.com/systemslibrarian/PostQuantum.SecretSharing/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/systemslibrarian/PostQuantum.SecretSharing/releases/tag/v1.0.0-rc.1

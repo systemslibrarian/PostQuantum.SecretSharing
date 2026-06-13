@@ -21,7 +21,7 @@ backup is a single point of failure or a single point of compromise.
 ```
 
 ```bash
-dotnet add package PostQuantum.SecretSharing --version 1.0.0-rc.2
+dotnet add package PostQuantum.SecretSharing --version 2.0.1-preview.1
 ```
 
 ```csharp
@@ -46,8 +46,9 @@ using ZeroizingBuffer recovered = ShamirSecretSharing.Reconstruct(quorum);
 // recovered.Span == masterKey, and is wiped from pinned memory on Dispose.
 ```
 
-That's the whole idea. The rest of this README is about *when you need it* and
-*how to use it correctly*.
+That's the whole idea. Around it ship a `pqss` CLI, runnable samples, ceremony
+docs, a threat model, fuzzing, and an audit kit — the rest of this README is about
+*when you need it* and *how to use it correctly*.
 
 ### Why this over a general-purpose Shamir library?
 
@@ -506,9 +507,12 @@ them. Treat it as a well-built primitive pending independent review. See
 
 ## Status & roadmap
 
-**Current release: `1.0.0-rc.2`.** The information-theoretic core and the
+**Current release: `2.0.1-preview.1`.** The information-theoretic core and the
 engineering around it are feature-complete; the API and the `.pqss` format are
-considered stable for the RC line and will not change without a SemVer signal.
+considered stable for this preview line and will not change without a SemVer
+signal. The core and the opt-in VSS package now share one version line (see
+[`CHANGELOG.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/CHANGELOG.md));
+the on-disk `.pqss` core format remains **v1**.
 
 | Area | Status |
 |------|:------:|
@@ -524,15 +528,15 @@ considered stable for the RC line and will not change without a SemVer signal.
 **What you can expect next** (intent, not a promise — full detail in
 [`ROADMAP.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/ROADMAP.md)):
 
-- **Toward `1.0.0` stable:** independent review of the GF(2⁸) math and the CBOR
-  codec, a written-up real-world dogfooding deployment, and a quiet RC period with
-  no format/API churn.
-- **`1.x` (additive, non-breaking):** more ecosystem samples (EF Core master key,
+- **Toward a stable `2.x` release:** independent review of the GF(2⁸) math and the
+  CBOR codec, a written-up real-world dogfooding deployment, and a quiet preview
+  period with no format/API churn.
+- **`2.x` (additive, non-breaking):** more ecosystem samples (EF Core master key,
   cloud-KMS hybrid), more published cross-implementation test vectors, and an
   optional `…Extensions` package for higher-level ceremony helpers.
-- **`v2` (opt-in, in preview now):** Verifiable Secret Sharing to detect a
-  *malicious dealer* ships as the separate
-  [`PostQuantum.SecretSharing.Vss`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md) package (`2.0.0-preview.1`) —
+- **Verifiable Secret Sharing (opt-in, in preview now):** detect a
+  *malicious dealer* — ships as the separate
+  [`PostQuantum.SecretSharing.Vss`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md) package (`2.0.1-preview.1`) —
   Pedersen VSS over P-256, kept out of the dependency-free core. Secrecy stays
   information-theoretic; only the dealer-fraud *detection* is computational (the
   honest tradeoff, documented). Distributed proactive refresh is still planned. See

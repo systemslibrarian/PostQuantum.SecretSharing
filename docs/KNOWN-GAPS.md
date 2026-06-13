@@ -13,7 +13,7 @@ against that requires Verifiable Secret Sharing, which needs a prime-order group
 rather than GF(2⁸) — so it is **not** part of the core and never will be.
 
 It is available as an **opt-in preview package**,
-[`PostQuantum.SecretSharing.Vss`](VSS-DESIGN.md) (`2.0.0-preview.1`), implementing
+[`PostQuantum.SecretSharing.Vss`](VSS-DESIGN.md) (`2.0.1-preview.1`), implementing
 **Pedersen VSS** over NIST P-256. Two things to understand before relying on it:
 
 - **Secrecy stays information-theoretic / post-quantum.** Pedersen commitments are
