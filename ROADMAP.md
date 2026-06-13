@@ -4,9 +4,11 @@ This roadmap states intent, not promises. The guiding principle is the same one
 that governs the rest of the project: ship a small, correct, honestly-documented
 primitive, and only add scope that can be done to the same standard.
 
-## v1.0 (current line — `1.0.0-rc.x`)
+## The core (current line — `2.0.1-preview.x`)
 
-The information-theoretic core plus the engineering around it, complete:
+The core and the opt-in VSS package now share one version line (see
+[CHANGELOG.md](CHANGELOG.md)); the on-disk core `.pqss` format stays **v1**. The
+information-theoretic core plus the engineering around it is complete:
 
 - Shamir over GF(2⁸) — constant-time, table-free field math.
 - Strict canonical CBOR `.pqss` share format (hand-rolled, fail-closed).
@@ -19,28 +21,28 @@ The information-theoretic core plus the engineering around it, complete:
 - `pqss` CLI, four samples, full docs (SPEC, THREAT-MODEL, KNOWN-GAPS,
   OPERATIONS, BENCHMARKS).
 
-**To reach `1.0.0` (stable):**
+**To reach a stable `2.x` release:**
 
 - [ ] Independent review of the GF(2⁸) arithmetic and the CBOR parser/serializer
       (the two highest-risk components). *Requires external reviewers.*
 - [ ] At least one real-world dogfooding deployment, written up.
 - [ ] No format or public-API changes for a sustained RC period.
 
-## v1.x (additive, non-breaking)
+## Additive, non-breaking (`2.x`)
 
 - Additional ecosystem integration samples (EF Core master key, cloud-KMS hybrid).
 - More published test vectors as other implementations appear.
 - Optional `PostQuantum.SecretSharing.Extensions` for higher-level ceremony
   helpers, kept out of the core so the core stays dependency-free.
 
-## v2 (may require a format version bump → `.pqss` v2)
+## Larger scope (may bump the `.pqss` format to v2)
 
-The hard problems v1 deliberately does **not** solve (see KNOWN-GAPS.md):
+The hard problems the core deliberately does **not** solve (see KNOWN-GAPS.md):
 
 - **Verifiable Secret Sharing (Pedersen).** Detect a *malicious dealer* who issues
   inconsistent shares. This needs a prime-order group rather than GF(2⁸), so it is a
   parallel scheme, not a patch to the core. **Now shipping in preview** as the opt-in
-  [`PostQuantum.SecretSharing.Vss`](docs/VSS-DESIGN.md) package (`2.0.0-preview.1`):
+  [`PostQuantum.SecretSharing.Vss`](docs/VSS-DESIGN.md) package (`2.0.1-preview.1`):
   Pedersen VSS over P-256, `.pqss` v2 records, secrecy still information-theoretic,
   dealer-fraud detection computational. Path to stable: ML-DSA-signed commitments,
   published cross-impl vectors, a sample, and review. The GF(2⁸) core stays

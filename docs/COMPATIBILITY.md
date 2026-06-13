@@ -16,21 +16,23 @@ Two things are versioned in this project, and they are **not** the same thing:
   `1.x` release will be readable by any other `1.x` release, byte-for-byte
   canonical. The cross-implementation [test vectors](test-vectors.md) and the
   worked example in [SPEC.md](SPEC.md) pin this.
-- A format change that is not backward-compatible will bump the format version
-  (`version = 2`) and ship behind a new major library version. v1 readers will
-  reject v2 shares with a clear `ShareFormatException` rather than mis-parsing
-  them.
+- A format change that is not backward-compatible will bump the format `version`
+  field (`version = 2`) and be introduced in a clearly-flagged release. The format
+  version and the package/library version are independent (the package may be on a
+  `2.x` line while the on-disk format is still v1). v1 readers will reject v2 shares
+  with a clear `ShareFormatException` rather than mis-parsing them.
 
 ## The .NET API (Semantic Versioning)
 
-Once `1.0.0` ships, the public API follows [SemVer](https://semver.org/):
+Once a stable (non-prerelease) `2.x` release ships, the public API follows
+[SemVer](https://semver.org/):
 
 - **MAJOR** — a breaking change to the public API or the `.pqss` format.
 - **MINOR** — backward-compatible additions (new methods, new optional
   parameters, new helpers).
 - **PATCH** — backward-compatible bug fixes.
 
-Until `1.0.0`, the `1.0.0-rc.x` pre-releases may still adjust the public API in
+Until then, the `2.0.1-preview.x` pre-releases may still adjust the public API in
 response to review feedback; the `.pqss` **format**, however, is already treated
 as v1-stable (see above).
 

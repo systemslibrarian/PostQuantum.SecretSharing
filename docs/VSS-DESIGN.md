@@ -2,7 +2,7 @@
 
 > **Status: implemented as a preview.** This document is both the design rationale
 > and the contract the implementation meets. It is realised in the opt-in
-> `PostQuantum.SecretSharing.Vss` package (`2.0.0-preview.1`); the GF(2⁸) core is
+> `PostQuantum.SecretSharing.Vss` package (`2.0.1-preview.1`); the GF(2⁸) core is
 > **not** modified. Code: `src/PostQuantum.SecretSharing.Vss/`. Tests:
 > `tests/PostQuantum.SecretSharing.Vss.Tests/` (round-trip, quorum agreement, tamper /
 > malicious-dealer detection, fail-closed parsing, group-math and interpolation
@@ -210,7 +210,7 @@ commitments and throws `ShareConsistencyException` rather than returning a wrong
    hides `a_0` perfectly); but it is stated, not hidden. The GF(2⁸) core remains the
    constant-time path.
 3. **Commitment size grows with secret length** — wrap large secrets (§3.2).
-4. **Preview-quality, unaudited new crypto** — ships only as `2.0.0-preview`.
+4. **Preview-quality, unaudited new crypto** — ships only as a `2.x` preview.
 
 ## 8. Test & evidence plan (to match the rest of the project)
 
