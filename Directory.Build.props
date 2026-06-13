@@ -18,6 +18,7 @@
     <Product>PostQuantum.SecretSharing</Product>
     <Copyright>Copyright (c) systemslibrarian</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/systemslibrarian/PostQuantum.SecretSharing</PackageProjectUrl>
     <RepositoryUrl>https://github.com/systemslibrarian/PostQuantum.SecretSharing</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
