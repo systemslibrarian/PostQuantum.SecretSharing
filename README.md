@@ -3,7 +3,7 @@
 [![CI](https://github.com/systemslibrarian/PostQuantum.SecretSharing/actions/workflows/ci.yml/badge.svg)](https://github.com/systemslibrarian/PostQuantum.SecretSharing/actions/workflows/ci.yml)
 [![CodeQL](https://github.com/systemslibrarian/PostQuantum.SecretSharing/actions/workflows/codeql.yml/badge.svg)](https://github.com/systemslibrarian/PostQuantum.SecretSharing/actions/workflows/codeql.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/systemslibrarian/PostQuantum.SecretSharing/badge)](https://scorecard.dev/viewer/?uri=github.com/systemslibrarian/PostQuantum.SecretSharing)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/LICENSE)
 
 **Your encrypted system is only as safe as the one key nobody knows where to keep.**
 
@@ -132,7 +132,7 @@ information-theoretic guarantee.
 You never need to know the math to use the library — but you should know the one
 honest caveat: the *scheme* is unconditionally secure; the *implementation*
 (authentication, memory hygiene, the integrity check) is ordinary engineering,
-documented plainly here and in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md).
+documented plainly here and in [`docs/THREAT-MODEL.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/THREAT-MODEL.md).
 
 ---
 
@@ -217,7 +217,7 @@ using (ZeroizingBuffer key = ShamirSecretSharing.Reconstruct(quorum))
 Rules of thumb: pick **K** so no realistically-collusion-prone subset reaches it,
 and pick **N − K ≥ 2** so you can lose two shares and still recover. Limits:
 `2 ≤ K ≤ N ≤ 255`, secret length `1..65536` bytes. See
-[`docs/OPERATIONS.md`](docs/OPERATIONS.md) for running an actual ceremony.
+[`docs/OPERATIONS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/OPERATIONS.md) for running an actual ceremony.
 
 ---
 
@@ -482,10 +482,10 @@ memory the GC can't copy, and is wiped deterministically on `Dispose`.
 
 **Can I revoke a share?** Not really. A printed share exists forever. To remove a
 trustee, **rotate the secret** and re-split; the old share then unlocks only a
-retired secret. See [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+retired secret. See [`docs/OPERATIONS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/OPERATIONS.md).
 
 **What does a share look like on disk?** A compact, strictly-canonical CBOR map
-(`.pqss`). The byte-level format is fully specified in [`docs/SPEC.md`](docs/SPEC.md).
+(`.pqss`). The byte-level format is fully specified in [`docs/SPEC.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/SPEC.md).
 
 **Is it fast?** A 3-of-5 split of a 32-byte key is well under a millisecond; a
 64 KiB split + reconstruct is tens of milliseconds. It is a primitive, not a
@@ -499,8 +499,8 @@ This package is **not audited.** It is carefully engineered — constant-time fi
 math, a strict parser, fail-closed validation, honest documentation — but
 *carefully engineered* and *audited* are different claims, and we will not conflate
 them. Treat it as a well-built primitive pending independent review. See
-[`docs/KNOWN-GAPS.md`](docs/KNOWN-GAPS.md) and
-[`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) for the unvarnished limitations.
+[`docs/KNOWN-GAPS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/KNOWN-GAPS.md) and
+[`docs/THREAT-MODEL.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/THREAT-MODEL.md) for the unvarnished limitations.
 
 ---
 
@@ -522,7 +522,7 @@ considered stable for the RC line and will not change without a SemVer signal.
 | Independent security audit | ⏳ Not yet — *honestly stated, not implied* |
 
 **What you can expect next** (intent, not a promise — full detail in
-[`ROADMAP.md`](ROADMAP.md)):
+[`ROADMAP.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/ROADMAP.md)):
 
 - **Toward `1.0.0` stable:** independent review of the GF(2⁸) math and the CBOR
   codec, a written-up real-world dogfooding deployment, and a quiet RC period with
@@ -532,11 +532,11 @@ considered stable for the RC line and will not change without a SemVer signal.
   optional `…Extensions` package for higher-level ceremony helpers.
 - **`v2` (opt-in, in preview now):** Verifiable Secret Sharing to detect a
   *malicious dealer* ships as the separate
-  [`PostQuantum.SecretSharing.Vss`](docs/VSS-DESIGN.md) package (`2.0.0-preview.1`) —
+  [`PostQuantum.SecretSharing.Vss`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md) package (`2.0.0-preview.1`) —
   Pedersen VSS over P-256, kept out of the dependency-free core. Secrecy stays
   information-theoretic; only the dealer-fraud *detection* is computational (the
   honest tradeoff, documented). Distributed proactive refresh is still planned. See
-  [`docs/KNOWN-GAPS.md`](docs/KNOWN-GAPS.md) §1.
+  [`docs/KNOWN-GAPS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/KNOWN-GAPS.md) §1.
 
 What this deliberately is **not**, now or planned: a KMS, a way to safely split
 low-entropy secrets directly (use `WrappedSecret`), or a defense against power/EM
@@ -546,28 +546,28 @@ side channels and process memory dumps.
 
 ## Documentation
 
-- [`docs/SPEC.md`](docs/SPEC.md) — byte-level `.pqss` format specification (with a worked, test-pinned hex example).
-- [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) — in/out of scope, plainly stated.
-- [`docs/KNOWN-GAPS.md`](docs/KNOWN-GAPS.md) — real limitations, including the unflattering ones.
-- [`docs/AUDIT.md`](docs/AUDIT.md) — reviewer's audit kit: scope, repro, ranked risk areas, and a checklist (we want this cheap to audit).
-- [`docs/VSS-DESIGN.md`](docs/VSS-DESIGN.md) — design + tradeoffs of the opt-in Verifiable Secret Sharing (Pedersen) preview package, and [`docs/test-vectors-vss.md`](docs/test-vectors-vss.md).
-- [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — trustee ceremony guide.
-- [`docs/CASE-STUDY-signing-key.md`](docs/CASE-STUDY-signing-key.md) — a verified, reproducible ceremony protecting a code-signing key (with byte-identical + signature proofs).
-- [`docs/test-vectors.md`](docs/test-vectors.md) — cross-implementation test vectors.
-- [`samples/`](samples) — six runnable samples: `SignerCustody` (authenticated 3-of-5 custody), `EnvelopeRecovery` (the wrap pattern, net8.0), `VaultUnseal` (Vault-style sealed service), `AspNetCoreDataProtection` (encrypt the DP key ring behind a quorum), `MaliciousDealerDetected` (Verifiable Secret Sharing catching an inconsistent dealer, net8.0), and `pqss` (a real split/inspect/verify/combine/refresh CLI).
-- [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) — throughput numbers and constant-time evidence (and how to reproduce).
-- [`fuzz/`](fuzz) — coverage-guided (SharpFuzz + libFuzzer) fuzzing of the `.pqss` parser; runs in CI.
-- [`docs/COMPATIBILITY.md`](docs/COMPATIBILITY.md) — `.pqss` format-stability and SemVer policy.
-- [`docs/SUPPLY-CHAIN.md`](docs/SUPPLY-CHAIN.md) — build provenance, SBOM, reproducible builds, and how to verify a release yourself.
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — build/test, the API-lock and banned-API gates, and the release ritual.
-- [`ROADMAP.md`](ROADMAP.md) — v1 / v1.x / v2 plan. [`CHANGELOG.md`](CHANGELOG.md) — release history.
-- [`SECURITY.md`](SECURITY.md) — how to report vulnerabilities.
+- [`docs/SPEC.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/SPEC.md) — byte-level `.pqss` format specification (with a worked, test-pinned hex example).
+- [`docs/THREAT-MODEL.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/THREAT-MODEL.md) — in/out of scope, plainly stated.
+- [`docs/KNOWN-GAPS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/KNOWN-GAPS.md) — real limitations, including the unflattering ones.
+- [`docs/AUDIT.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/AUDIT.md) — reviewer's audit kit: scope, repro, ranked risk areas, and a checklist (we want this cheap to audit).
+- [`docs/VSS-DESIGN.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md) — design + tradeoffs of the opt-in Verifiable Secret Sharing (Pedersen) preview package, and [`docs/test-vectors-vss.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/test-vectors-vss.md).
+- [`docs/OPERATIONS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/OPERATIONS.md) — trustee ceremony guide.
+- [`docs/CASE-STUDY-signing-key.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/CASE-STUDY-signing-key.md) — a verified, reproducible ceremony protecting a code-signing key (with byte-identical + signature proofs).
+- [`docs/test-vectors.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/test-vectors.md) — cross-implementation test vectors.
+- [`samples/`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/tree/main/samples) — six runnable samples: `SignerCustody` (authenticated 3-of-5 custody), `EnvelopeRecovery` (the wrap pattern, net8.0), `VaultUnseal` (Vault-style sealed service), `AspNetCoreDataProtection` (encrypt the DP key ring behind a quorum), `MaliciousDealerDetected` (Verifiable Secret Sharing catching an inconsistent dealer, net8.0), and `pqss` (a real split/inspect/verify/combine/refresh CLI).
+- [`docs/BENCHMARKS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/BENCHMARKS.md) — throughput numbers and constant-time evidence (and how to reproduce).
+- [`fuzz/`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/tree/main/fuzz) — coverage-guided (SharpFuzz + libFuzzer) fuzzing of the `.pqss` parser; runs in CI.
+- [`docs/COMPATIBILITY.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/COMPATIBILITY.md) — `.pqss` format-stability and SemVer policy.
+- [`docs/SUPPLY-CHAIN.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/SUPPLY-CHAIN.md) — build provenance, SBOM, reproducible builds, and how to verify a release yourself.
+- [`CONTRIBUTING.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/CONTRIBUTING.md) — build/test, the API-lock and banned-API gates, and the release ritual.
+- [`ROADMAP.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/ROADMAP.md) — v1 / v1.x / v2 plan. [`CHANGELOG.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/CHANGELOG.md) — release history.
+- [`SECURITY.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/SECURITY.md) — how to report vulnerabilities.
 
 ---
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE).
+MIT. See [`LICENSE`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/LICENSE).
 
 ---
 

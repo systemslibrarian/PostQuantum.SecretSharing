@@ -7,6 +7,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Packaging / docs links.** Converted the packaged READMEs to absolute GitHub URLs
+  so documentation links work on the nuget.org package page (relative links resolved to
+  `nuget.org/...` and 404'd). Added `PackageProjectUrl` so every package links back to the
+  repository. The VSS package README now includes a quick example and links to the
+  runnable `MaliciousDealerDetected` sample. VSS bumped to `2.0.0-preview.2` to publish
+  these (nuget.org package versions are immutable).
+
 ### Added
 
 - **`PostQuantum.SecretSharing.Vss` (`2.0.0-preview.1`) — opt-in Verifiable Secret
