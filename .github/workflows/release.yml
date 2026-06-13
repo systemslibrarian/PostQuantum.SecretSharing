@@ -84,14 +84,20 @@ jobs:
           echo "Releasing PostQuantum.SecretSharing $csproj_version from $TAG."
 
       - name: Restore
-        run: dotnet restore "$PROJECT"
+        run: dotnet restore PostQuantum.SecretSharing.sln
 
       - name: Build (reproducible)
-        run: dotnet build "$PROJECT" -c Release --no-restore
+        run: dotnet build PostQuantum.SecretSharing.sln -c Release --no-restore
 
-      # Run the full test suite from the tagged state before publishing.
-      - name: Test
-        run: dotnet test PostQuantum.SecretSharing.sln -c Release
+      # Run the test suite from the tagged state before publishing. The bench
+      # and timing categories are excluded for the same reason as in ci.yml:
+      # the statistical constant-time tests are noise-sensitive on shared CI
+      # runners, and benchmarks are not pass/fail gates.
+      - name: Test net8.0
+        run: dotnet test PostQuantum.SecretSharing.sln -c Release --no-build -f net8.0 --filter "Category!=bench&Category!=timing"
+
+      - name: Test net10.0
+        run: dotnet test PostQuantum.SecretSharing.sln -c Release --no-build -f net10.0 --filter "Category!=bench&Category!=timing"
 
       - name: Pack
         run: dotnet pack "$PROJECT" -c Release --no-build -o artifacts
