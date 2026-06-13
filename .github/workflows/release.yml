@@ -106,9 +106,11 @@ jobs:
       - name: Generate SBOM (CycloneDX)
         shell: bash
         run: |
-          dotnet tool install --global CycloneDX
+          # Pin the tool: the CLI dropped the `-j` flag in 6.x; an unpinned
+          # install floats and breaks the build. -F Json is the 6.x equivalent.
+          dotnet tool install --global CycloneDX --version 6.2.0
           export PATH="$PATH:$HOME/.dotnet/tools"
-          dotnet CycloneDX "$PROJECT" -o artifacts -j
+          dotnet CycloneDX "$PROJECT" -o artifacts -F Json
 
       - name: Compute SHA-256 hashes
         shell: bash

@@ -160,9 +160,11 @@ jobs:
       # Software Bill of Materials (CycloneDX) for the package.
       - name: Generate SBOM (CycloneDX)
         run: |
-          dotnet tool install --global CycloneDX
+          # Pin the tool: the CLI dropped the `-j` flag in 6.x; an unpinned
+          # install floats and breaks the build. -F Json is the 6.x equivalent.
+          dotnet tool install --global CycloneDX --version 6.2.0
           export PATH="$PATH:$HOME/.dotnet/tools"
-          dotnet CycloneDX src/PostQuantum.SecretSharing/PostQuantum.SecretSharing.csproj -o artifacts -j
+          dotnet CycloneDX src/PostQuantum.SecretSharing/PostQuantum.SecretSharing.csproj -o artifacts -F Json
         shell: bash
 
       # SLSA build provenance for the released artifacts (only on push to main,
