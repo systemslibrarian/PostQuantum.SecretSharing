@@ -7,7 +7,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Added
+
+- **FsCheck property tests with shrinking** over the CBOR layer
+  (`FsCheckCborTests` + generators): arbitrary-bytes crash-freedom, structured
+  CBOR maps with deliberately-wrong contents, valid-share round-trip, and valid
+  shares under 13 kinds of structural mutation — all minimized to small
+  reproducers on failure.
+- **BenchmarkDotNet project** (`benchmarks/PostQuantum.SecretSharing.Benchmarks`)
+  for rigorous, allocation-aware split/reconstruct/export/import numbers;
+  documented in `docs/BENCHMARKS.md`.
+- **ASP.NET Core Data Protection sample** now also demonstrates the fail-closed
+  case: a stolen key ring is inert without a quorum.
 
 ## [1.0.0-rc.1] — 2026-06-12
 

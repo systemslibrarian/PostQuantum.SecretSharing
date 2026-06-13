@@ -8,11 +8,19 @@ machine-dependent samples (a Windows 11 dev box, .NET 10, Release); treat the
 
 > Reproduce locally:
 > ```bash
+> # Rigorous numbers (BenchmarkDotNet: split / reconstruct / export / import):
+> dotnet run -c Release --project benchmarks/PostQuantum.SecretSharing.Benchmarks
+> #   ...or a quick pass:  -- --job short      ...or filter:  -- --filter *Split*
+>
+> # Quick smoke numbers + constant-time evidence (xUnit traits):
 > dotnet test -c Release -f net10.0 --filter "Category=bench"    # throughput
 > dotnet test -c Release -f net10.0 --filter "Category=timing"   # constant-time
 > ```
-> Both trait groups are **excluded from the CI gate** (wall-clock numbers are
-> noisy on shared runners); run them explicitly.
+> The xUnit `bench`/`timing` trait groups are **excluded from the CI gate**
+> (wall-clock numbers are noisy on shared runners); run them explicitly. The
+> [BenchmarkDotNet project](../benchmarks/PostQuantum.SecretSharing.Benchmarks)
+> produces the authoritative, statistically-rigorous numbers (with
+> `[MemoryDiagnoser]` allocation columns).
 
 ---
 

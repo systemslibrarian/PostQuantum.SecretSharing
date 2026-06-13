@@ -54,6 +54,23 @@ string keyXml = Directory.GetFiles(keyDir, "key-*.xml").Select(File.ReadAllText)
 bool encryptedAtRest = keyXml.Contains("PqssQuorumEncryptedKey", StringComparison.Ordinal);
 Console.WriteLine($"  key ring encrypted at rest by the quorum KEK: {encryptedAtRest}\n");
 
+// ── Stolen disk, NO quorum: the key ring is inert ─────────────────────────────
+Console.WriteLine("Stolen disk, NO quorum: a fresh process tries to read the key ring …");
+AmbientKek.Clear();
+using (ServiceProvider sp = BuildDataProtection(keyDir))
+{
+    try
+    {
+        sp.GetDataProtectionProvider().CreateProtector("demo.purpose").Unprotect(protectedBlob);
+        Console.WriteLine("  (unexpected) it succeeded without a quorum — that would be a bug.");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"  refused — the key ring cannot be decrypted without the quorum KEK ({ex.GetType().Name}).");
+    }
+}
+Console.WriteLine();
+
 // ── App restart #2: fresh provider; a different quorum unseals the same KEK ────
 Console.WriteLine("App start #2 (simulated restart): a DIFFERENT quorum (3, 4, 5) unseals …");
 Unseal(shareFiles, 3, 4, 5);

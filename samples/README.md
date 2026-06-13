@@ -122,5 +122,6 @@ dotnet run --project samples/AspNetCoreDataProtection
 ```
 
 Demonstrates: a custom DP at-rest encryptor keyed by a quorum-reconstructed KEK,
-key-ring encryption verified on disk, and recovery across a simulated restart by a
+key-ring encryption verified on disk, the **fail-closed** case (a stolen key ring
+is inert without a quorum), and recovery across a simulated restart by a
 *different* quorum.
