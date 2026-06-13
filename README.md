@@ -2,44 +2,259 @@
 
 **Your encrypted system is only as safe as the one key nobody knows where to keep.**
 
-Many systems end up with a single high-value key — a signing key, a root of
-trust, or a recovery key — that is too important to leave on one machine or
-behind one passphrase, but too sensitive to distribute casually. Any system whose
-trust hangs on such a key has a custody problem; one whose break-glass path is a
-passphrase has a guessability problem.
+Split one high-value secret into *N* shares so that any *K* of them rebuild it —
+and any *K−1* reveal **mathematically nothing**. No single person, machine, or
+backup is a single point of failure or a single point of compromise.
 
-PostQuantum.SecretSharing gives you **quorum custody** for that key. It implements
-[Shamir's Secret Sharing](https://en.wikipedia.org/wiki/Shamir%27s_secret_sharing)
-over GF(2⁸) with an authenticated, versioned, strict-canonical-CBOR share file
-format (`.pqss`): split any high-entropy secret into *N* shares such that any *K*
-can reconstruct it, while any *K−1* reveal **information-theoretically nothing**.
-It replaces fragile single-custodian or passphrase-based recovery with something
-stronger and information-theoretically sound.
+```text
+                                   ┌─ share 1  →  IT Director
+                                   ├─ share 2  →  SRE on-call
+   master key  ──[ 3-of-5 split ]──┼─ share 3  →  Security lead      any 3 of 5
+   (32 bytes)                      ├─ share 4  →  Offsite safe       rebuild it;
+                                   └─ share 5  →  Legal/compliance   any 2 reveal
+                                                                     nothing
+```
 
-It is a standalone member of the `systemslibrarian` **PostQuantum.\*** family.
+```bash
+dotnet add package PostQuantum.SecretSharing --version 1.0.0-rc.1
+```
 
-> **Standalone by design.** This package has *zero* dependencies on any other
-> PostQuantum.\* package, in either direction, and no third-party crypto
-> dependencies at all (BCL only). Any integration with the rest of the suite
-> happens later through a *sample*, never a reference.
+```csharp
+using PostQuantum.SecretSharing;
+using System.Security.Cryptography;
+
+byte[] masterKey = RandomNumberGenerator.GetBytes(32);
+
+// Split 3-of-5 and hand each share to a different custodian.
+SecretShare[] shares = ShamirSecretSharing.Split(masterKey, new SharePolicy(Threshold: 3, TotalShares: 5));
+foreach (SecretShare s in shares)
+    File.WriteAllBytes($"share-{s.ShareIndex}.pqss", s.Export());
+
+// ...later, any three custodians convene and rebuild the key.
+SecretShare[] quorum = new[]
+{
+    SecretShare.Import(File.ReadAllBytes("share-1.pqss")),
+    SecretShare.Import(File.ReadAllBytes("share-3.pqss")),
+    SecretShare.Import(File.ReadAllBytes("share-5.pqss")),
+};
+using ZeroizingBuffer recovered = ShamirSecretSharing.Reconstruct(quorum);
+// recovered.Span == masterKey, and is wiped from pinned memory on Dispose.
+```
+
+That's the whole idea. The rest of this README is about *when you need it* and
+*how to use it correctly*.
+
+---
+
+## The need: where one key becomes one liability
+
+Almost every secure system eventually has a key that is **too important to lose
+and too dangerous to concentrate**. Put it on one machine and that machine is a
+single point of failure. Protect it with one passphrase and the passphrase is a
+single point of guessing. Hand it to one administrator and that administrator is
+a single point of trust.
+
+Secret sharing dissolves that single point. You decide the quorum: "any 3 of
+these 5 people," "both of these 2 plus one backup," "5 of 9 board members." Below
+the quorum, the shares are useless — not "hard to crack," but provably empty of
+information.
+
+### Concrete problems this solves
+
+| You have… | The pain | What this gives you |
+|-----------|----------|---------------------|
+| A **code / release signing key** | One developer can sign unilaterally — or lose the key and brick releases | `M-of-N` custody: no lone signer, no lone loss |
+| A **root CA / trust-anchor private key** | The whole PKI hinges on one file in one HSM/safe | Quorum custody + dealer-authenticated shares (ML-DSA-65) |
+| A **database / disk master key (KEK)** | Bus factor of 1; if the one holder is gone, data is gone | Recoverable by any quorum, survivable to lost shares |
+| A **cloud KMS / vault unseal/root key** | Break-glass is a sticky note or a shared passphrase | Real `K-of-N` break-glass instead of a guessable secret |
+| A **crypto wallet seed / treasury key** | Single seed phrase = single theft or single loss | Threshold custody across people and locations |
+| **"God-mode" admin / root credentials** | One person silently holds total access | Require a quorum to assemble the credential |
+| **Backup-encryption keys** | Keys escrowed next to the backups they protect | Distribute key shares across departments/sites |
+
+### What you get that a passphrase or a single file does not
+
+- **No single point of compromise.** Stealing one (or any `K−1`) shares yields
+  *zero* information about the secret. This is provable, not "computationally
+  expensive."
+- **No single point of failure.** Lose up to `N−K` shares and you still recover.
+- **No guessability.** Unlike a passphrase, shares are full-entropy data; there is
+  nothing to brute-force below the quorum.
+- **Survives quantum computers.** The secrecy guarantee is information-theoretic —
+  it does not rest on any problem a quantum computer could solve (see below).
+- **Tamper-evident.** With authenticated mode, a swapped or corrupted share is
+  detected and rejected, not silently used.
+
+---
+
+## How it works in 30 seconds
+
+Each byte of your secret becomes the constant term of a random polynomial of
+degree `K−1` over the finite field GF(2⁸). A "share" is that polynomial evaluated
+at a distinct point `x`. `K` points uniquely determine a degree-`K−1` polynomial
+(so `K` shares rebuild the secret); `K−1` points are consistent with *every*
+possible constant term equally (so they reveal nothing). That second fact is the
+information-theoretic guarantee.
+
+You never need to know the math to use the library — but you should know the one
+honest caveat: the *scheme* is unconditionally secure; the *implementation*
+(authentication, memory hygiene, the integrity check) is ordinary engineering,
+documented plainly here and in [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md).
+
+---
+
+## Quick start
+
+### 1. Unauthenticated split (integrity check only)
+
+Good when shares live in trusted storage and you only need to detect *accidental*
+corruption or mixed-up shares.
+
+```csharp
+using PostQuantum.SecretSharing;
+using System.Security.Cryptography;
+
+byte[] secret = RandomNumberGenerator.GetBytes(32);              // a 256-bit key
+
+SecretShare[] shares = ShamirSecretSharing.Split(secret, new SharePolicy(3, 5));
+byte[][] files = shares.Select(s => s.Export()).ToArray();       // canonical .pqss bytes
+CryptographicOperations.ZeroMemory(secret);                      // done with the plaintext
+
+// Reconstruct from EXACTLY 3 shares (passing more is rejected — see FAQ).
+SecretShare[] quorum = files.Take(3).Select(SecretShare.Import).ToArray();
+using ZeroizingBuffer recovered = ShamirSecretSharing.Reconstruct(quorum);
+Console.WriteLine(recovered.Span.SequenceEqual(secret));         // (if you kept a copy)
+```
+
+### 2. Authenticated split (dealer-signed shares — net10.0)
+
+Use this when shares travel through untrusted hands and you must detect a
+**tampered or substituted** share. The dealer signs every share with ML-DSA-65
+(FIPS 204); reconstruction verifies against a public key you **pin** out-of-band.
+
+```csharp
+using PostQuantum.SecretSharing;
+using System.Security.Cryptography;
+
+byte[] secret = RandomNumberGenerator.GetBytes(32);
+
+using MlDsa65ShareAuthenticator dealer = MlDsa65ShareAuthenticator.Generate();
+ReadOnlyMemory<byte> dealerPublicKey = dealer.PublicKey;         // PIN this (print it, store in config, read it aloud)
+
+SecretShare[] shares = ShamirSecretSharing.Split(secret, new SharePolicy(3, 5), dealer);
+CryptographicOperations.ZeroMemory(secret);
+
+// Every share must be signed by the pinned dealer key, or reconstruction throws.
+SecretShare[] quorum = /* import any 3 shares */ Array.Empty<SecretShare>();
+using ZeroizingBuffer recovered = ShamirSecretSharing.Reconstruct(quorum, dealerPublicKey);
+```
+
+> Keep the dealer **private** key with the same care as any signing key — anyone
+> who has it can mint shares that pass your pin. Persist it with
+> `dealer.ExportPrivateKey()` and reload it later with
+> `MlDsa65ShareAuthenticator.ImportPrivateKey(...)`, or destroy it after the
+> ceremony if you will never re-split.
+
+### 3. Handling the secret safely
+
+Reconstruction returns a `ZeroizingBuffer`, not a `byte[]`. It is allocated on the
+pinned object heap (the GC can't relocate and silently copy it) and is zeroed when
+disposed. **Always `using` it**, and don't copy `Span` into a long-lived array.
+
+```csharp
+using (ZeroizingBuffer key = ShamirSecretSharing.Reconstruct(quorum))
+{
+    using var aes = new AesGcm(key.Span, tagSizeInBytes: 16);
+    // ...use key.Span for the minimum time needed...
+}   // key is wiped here
+```
+
+---
+
+## Choosing K and N
+
+| Goal | Suggested policy | Why |
+|------|------------------|-----|
+| Sensible default | **3-of-5** | Survive losing 2 shares; resist any 2 colluding |
+| Two-person rule + a backup | 2-of-3 | Either pair (or the backup) can act |
+| High assurance | 5-of-9 | Larger collusion barrier, still tolerant of loss |
+| Avoid | 2-of-2 | Lose either share → secret gone forever; no redundancy |
+| Forbidden | 1-of-N | Every share *is* the secret — the library rejects `K=1` |
+
+Rules of thumb: pick **K** so no realistically-collusion-prone subset reaches it,
+and pick **N − K ≥ 2** so you can lose two shares and still recover. Limits:
+`2 ≤ K ≤ N ≤ 255`, secret length `1..65536` bytes. See
+[`docs/OPERATIONS.md`](docs/OPERATIONS.md) for running an actual ceremony.
+
+---
+
+## Splitting low-entropy secrets safely (the wrap pattern)
+
+**Do not split a passphrase, PIN, or short password directly.** Every share
+carries an HKDF check value that lets a *single* shareholder brute-force a
+guessable secret offline (see "When NOT to use this"). Instead, split a random
+key and let that key wrap your real secret:
+
+```csharp
+using PostQuantum.SecretSharing;
+using System.Security.Cryptography;
+
+byte[] realSecret = Encoding.UTF8.GetBytes("correct horse battery staple"); // low entropy!
+
+// 1. Generate a full-entropy key-encryption key and encrypt the real secret.
+byte[] kek = RandomNumberGenerator.GetBytes(32);
+byte[] nonce = RandomNumberGenerator.GetBytes(AesGcm.NonceByteSizes.MaxSize);
+byte[] ciphertext = new byte[realSecret.Length];
+byte[] tag = new byte[AesGcm.TagByteSizes.MaxSize];
+using (var aes = new AesGcm(kek, tag.Length))
+    aes.Encrypt(nonce, realSecret, ciphertext, tag);
+
+// 2. Split the KEK (high entropy ⇒ the check-value oracle is harmless), and store
+//    nonce + ciphertext + tag alongside the shares (they are not secret).
+SecretShare[] shares = ShamirSecretSharing.Split(kek, new SharePolicy(3, 5));
+CryptographicOperations.ZeroMemory(kek);
+
+// 3. To recover: reconstruct the KEK, then decrypt.
+using ZeroizingBuffer recoveredKek = ShamirSecretSharing.Reconstruct(/* 3 shares */ shares.Take(3).ToList());
+byte[] plaintext = new byte[ciphertext.Length];
+using (var aes = new AesGcm(recoveredKek.Span, tag.Length))
+    aes.Decrypt(nonce, ciphertext, tag, plaintext);
+```
+
+---
+
+## API reference
+
+| Member | Purpose |
+|--------|---------|
+| `SharePolicy(int Threshold, int TotalShares)` | The `K-of-N` policy. `2 ≤ K ≤ N ≤ 255`. |
+| `ShamirSecretSharing.Split(secret, policy)` | Split into `N` unauthenticated shares. |
+| `ShamirSecretSharing.Split(secret, policy, dealer)` | Split into `N` dealer-signed shares. |
+| `ShamirSecretSharing.Reconstruct(shares)` | Rebuild from **exactly K** shares; returns a `ZeroizingBuffer`. |
+| `ShamirSecretSharing.Reconstruct(shares, expectedDealerPublicKey)` | As above, but require every share to verify against the pinned key. |
+| `SecretShare.Export()` | Canonical `.pqss` bytes for distribution/storage. |
+| `SecretShare.Import(bytes)` | Strict, fail-closed parse of `.pqss` bytes. |
+| `SecretShare.{Threshold, TotalShares, ShareIndex, SecretLength, SplitId, Authentication, DealerPublicKey}` | Public metadata. (Raw `y` data is intentionally **not** exposed.) |
+| `ZeroizingBuffer.Span` / `.Length` / `.Dispose()` | Pinned, zeroizing access to the recovered secret. |
+| `IShareAuthenticator` | Dealer-signer abstraction (`Kind`, `PublicKey`, `Sign`). |
+| `MlDsa65ShareAuthenticator` *(net10.0)* | `Generate()`, `ImportPrivateKey()`, `ExportPrivateKey()`, `PublicKey`, `Sign()`. |
+| `ShareAuthenticationKind` | `None` (0) or `MlDsa65` (1). |
 
 ---
 
 ## The one unconditional claim — and its precise limit
 
-Shamir's scheme is **information-theoretically secure**: *K−1* shares reveal
+Shamir's scheme is **information-theoretically secure**: `K−1` shares reveal
 nothing about the secret against **any** adversary — classical or quantum, with
 unlimited compute. This is a mathematical fact about the scheme, not a
 computational-hardness assumption. No future algorithm or machine weakens it.
 
 That guarantee is about the **scheme**. Every *real* risk lives in the
 **implementation** — share authentication, side channels, memory hygiene, and the
-check-value oracle (see below). We are scrupulous about this distinction and never
-let marketing language blur it:
+check-value oracle. We never let marketing language blur the two:
 
-- **The scheme is unconditional.** *K−1* shares = zero information. Full stop.
+- **The scheme is unconditional.** `K−1` shares = zero information. Full stop.
 - **The implementation is where you must trust engineering.** We document every
-  one of those trust points honestly, including the ones that make us look worse.
+  one of those trust points honestly, including the unflattering ones.
 
 This package is called *post-quantum* for two concrete reasons, neither of which
 is "we hardened Shamir":
@@ -48,52 +263,13 @@ is "we hardened Shamir":
 2. Its authentication layer uses **ML-DSA-65 (FIPS 204)** — a post-quantum
    signature scheme — to authenticate shares against the dealer.
 
----
-
-## Security layers
+### Security layers
 
 | Layer | Mechanism | Guarantee |
 |-------|-----------|-----------|
-| **Secrecy of the secret** | Shamir over GF(2⁸) | Information-theoretic. *K−1* shares reveal nothing, against any adversary, ever. |
-| **Share authenticity** | ML-DSA-65 / FIPS 204 (optional) | Computational (post-quantum). Detects tampered or substituted shares when you pin the dealer key. |
-| **Share integrity** | HKDF-SHA256 check value | Detects accidental corruption / mismatched shares at reconstruction. **Caveat:** it is also an offline guessing oracle for *low-entropy* secrets — see below. |
-
----
-
-## Quick start
-
-### Unauthenticated split (integrity check only)
-
-```csharp
-using PostQuantum.SecretSharing;
-using System.Security.Cryptography;
-
-byte[] secret = RandomNumberGenerator.GetBytes(32);          // a 256-bit key
-
-// Split 3-of-5.
-SecretShare[] shares = ShamirSecretSharing.Split(secret, new SharePolicy(Threshold: 3, TotalShares: 5));
-
-// Serialize each share to its canonical .pqss bytes for distribution.
-byte[][] files = shares.Select(s => s.Export()).ToArray();
-
-// ...later, gather EXACTLY 3 shares and reconstruct:
-SecretShare[] quorum = files.Take(3).Select(f => SecretShare.Import(f)).ToArray();
-using ZeroizingBuffer recovered = ShamirSecretSharing.Reconstruct(quorum);
-// recovered.Span now holds the 32-byte secret; it is zeroed and pinned on Dispose.
-```
-
-### Authenticated split (dealer-signed shares, net10.0)
-
-```csharp
-using var dealer = MlDsa65ShareAuthenticator.Generate();
-ReadOnlyMemory<byte> dealerPubKey = dealer.PublicKey;        // pin this out-of-band
-
-SecretShare[] shares = ShamirSecretSharing.Split(secret, new SharePolicy(3, 5), dealer);
-
-// Reconstruct, REQUIRING every share to be signed by the pinned dealer key:
-SecretShare[] quorum = /* import 3 shares */;
-using ZeroizingBuffer recovered = ShamirSecretSharing.Reconstruct(quorum, dealerPubKey);
-```
+| **Secrecy of the secret** | Shamir over GF(2⁸) | Information-theoretic. `K−1` shares reveal nothing, against any adversary, ever. |
+| **Share authenticity** | ML-DSA-65 / FIPS 204 (optional) | Computational (post-quantum). Detects tampered/substituted shares when you pin the dealer key. |
+| **Share integrity** | HKDF-SHA256 check value | Detects accidental corruption / mismatched shares at reconstruction. **Caveat:** also an offline guessing oracle for *low-entropy* secrets. |
 
 ---
 
@@ -111,14 +287,13 @@ pin you obtained out-of-band proves the shares came from *your* dealer.
 
 ## When **NOT** to use this
 
-- **You are splitting a low-entropy secret (a passphrase, a PIN, a short
-  password).** The integrity check value travels inside every share and is an
-  **offline brute-force oracle** for anything guessable: a single shareholder can
-  test guesses of the secret without any quorum. For a 32-byte random key this is
-  irrelevant (2²⁵⁶ search). **Split keys, not passwords — or split a random key
-  that wraps your real secret.**
-- **You have a single custodian.** Secret sharing among one person is pointless
-  ceremony; just encrypt the secret.
+- **You are splitting a low-entropy secret (passphrase, PIN, short password).**
+  The integrity check value travels inside every share and is an **offline
+  brute-force oracle**: a single shareholder can test guesses without any quorum.
+  For a 32-byte random key this is irrelevant (2²⁵⁶ search). **Split keys, not
+  passwords** — or use the [wrap pattern](#splitting-low-entropy-secrets-safely-the-wrap-pattern).
+- **You have a single custodian.** Sharing among one person is pointless ceremony;
+  just encrypt the secret.
 - **You need verifiable secret sharing (VSS).** A *malicious dealer* can hand
   inconsistent shares to different trustees. v1 authenticates shares *against the
   dealer*; it cannot detect a dealer lying *differently* to different trustees.
@@ -131,11 +306,10 @@ pin you obtained out-of-band proves the shares came from *your* dealer.
 
 ## Platform matrix
 
-Unlike the rest of the suite, the **core of this package has no platform
-blockers**. The Shamir engine, the CBOR codec, the HKDF check value, and
-`ZeroizingBuffer` are pure managed code plus SHA-256/HKDF from the BCL — so they
-run on **net8.0 everywhere, including macOS, iOS, and Android.** That is a
-feature, and we advertise it.
+The **core has no platform blockers**. The Shamir engine, the CBOR codec, the
+HKDF check value, and `ZeroizingBuffer` are pure managed code plus SHA-256/HKDF
+from the BCL — so they run on **net8.0 everywhere, including macOS, iOS, and
+Android.**
 
 | Component | Windows | Linux | macOS | iOS / Android |
 |-----------|:-------:|:-----:|:-----:|:-------------:|
@@ -161,31 +335,6 @@ letting the ML-DSA tests skip.
 
 ---
 
-## Design decisions
-
-- **No log/antilog tables in the field math.** Table lookups indexed by
-  secret-dependent values are the classic cache-timing leak in Shamir libraries.
-  All GF(2⁸) multiplication is branchless, fixed-iteration, table-free.
-- **K=1 is banned.** With a threshold of one, every share *is* the secret — that
-  is security theater, not sharing. The library refuses it.
-- **Strict canonical CBOR we own.** The `.pqss` parser accepts only a tiny,
-  fully-canonical subset (definite lengths, shortest-form integers, ascending
-  unique integer keys, no trailing bytes, exact type per field). Unknown fields,
-  non-canonical encodings, and trailing bytes are rejected. We hand-roll the ~150-
-  line reader/writer rather than take a dependency, matching the suite's
-  "strict v1 parser we control" philosophy.
-- **Exactly-K reconstruction.** Reconstruct requires *exactly* `k` shares, not
-  "at least k." Silently using a subset would hide operator errors; we make you
-  pick the quorum deliberately.
-- **No RNG injection in the public API.** An injectable RNG in a secret-sharing
-  library is a foot-gun. Determinism for tests comes from published reference
-  vectors, not from a seam an attacker (or a careless caller) could exploit.
-- **Pinned, zeroizing secret buffers.** Reconstructed secrets land in a
-  `ZeroizingBuffer` allocated on the pinned object heap, so the GC cannot relocate
-  (and thus silently copy) the secret, and it is zeroed on dispose.
-
----
-
 ## Fail-closed guarantees
 
 Every parse error, length mismatch, policy violation, or signature failure throws
@@ -195,9 +344,61 @@ a **specific** exception **before** any secret-dependent computation runs:
 |-----------|---------|
 | `SecretSharingException` | Abstract base for all of the below. |
 | `ShareFormatException` | Malformed / non-canonical `.pqss`, wrong type, unknown field, trailing bytes, presence contradicting the declared mode. |
-| `SharePolicyException` | `k`, `n`, secret length, or share index out of range; wrong number of shares at reconstruct. |
+| `SharePolicyException` | `K`, `N`, secret length, or share index out of range; wrong number of shares at reconstruct. |
 | `ShareAuthenticationException` | Signature does not verify, or pinned dealer key mismatch. |
 | `ShareConsistencyException` | Well-formed shares that cannot belong to one split (mixed split IDs, metadata, duplicate indices), or a check-value mismatch after interpolation. |
+
+---
+
+## Design decisions
+
+- **No log/antilog tables in the field math.** Table lookups indexed by
+  secret-dependent values are the classic cache-timing leak in Shamir libraries.
+  All GF(2⁸) multiplication is branchless, fixed-iteration, table-free.
+- **K=1 is banned.** With a threshold of one, every share *is* the secret —
+  security theater, not sharing. The library refuses it.
+- **Strict canonical CBOR we own.** The `.pqss` parser accepts only a tiny,
+  fully-canonical subset (definite lengths, shortest-form integers, ascending
+  unique integer keys, no trailing bytes, exact type per field). Hand-rolled (~150
+  lines each way) rather than taking a dependency.
+- **Exactly-K reconstruction.** Reconstruct requires *exactly* `K` shares, not "at
+  least K." Silently using a subset would hide operator errors.
+- **No RNG injection in the public API.** An injectable RNG in a secret-sharing
+  library is a foot-gun. Test determinism comes from published reference vectors.
+- **Pinned, zeroizing secret buffers.** Reconstructed secrets land in a
+  `ZeroizingBuffer` on the pinned object heap, so the GC cannot relocate (and thus
+  silently copy) the secret, and it is zeroed on dispose.
+
+---
+
+## FAQ
+
+**Is this just `XOR`-style splitting?** No. Naive XOR splitting needs *all* shares
+to recover. This is true threshold sharing: any `K` of `N`, with `K < N`.
+
+**How is this "post-quantum" if Shamir is from 1979?** The secrecy guarantee is
+information-theoretic, so it already survives quantum adversaries — and the
+optional authentication layer uses ML-DSA-65 (FIPS 204), a post-quantum signature.
+
+**Why exactly K shares, not "at least K"?** Passing extra shares usually means an
+operator mistake (wrong pile, duplicates). Requiring exactly `K` surfaces that
+instead of quietly succeeding from a subset.
+
+**Why a `ZeroizingBuffer` instead of a `byte[]`?** So the secret lives in pinned
+memory the GC can't copy, and is wiped deterministically on `Dispose`.
+
+**Can I lose a share?** Yes — up to `N − K` of them. Plan `N − K ≥ 2`.
+
+**Can I revoke a share?** Not really. A printed share exists forever. To remove a
+trustee, **rotate the secret** and re-split; the old share then unlocks only a
+retired secret. See [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
+
+**What does a share look like on disk?** A compact, strictly-canonical CBOR map
+(`.pqss`). The byte-level format is fully specified in [`docs/SPEC.md`](docs/SPEC.md).
+
+**Is it fast?** A 3-of-5 split of a 32-byte key is well under a millisecond; a
+64 KiB split + reconstruct is tens of milliseconds. It is a primitive, not a
+bottleneck.
 
 ---
 
@@ -208,20 +409,25 @@ math, a strict parser, fail-closed validation, honest documentation — but
 *carefully engineered* and *audited* are different claims, and we will not conflate
 them. Treat it as a well-built primitive pending independent review. See
 [`docs/KNOWN-GAPS.md`](docs/KNOWN-GAPS.md) and
-[`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) for the unvarnished limitations,
-and [`docs/OPERATIONS.md`](docs/OPERATIONS.md) for running an actual trustee
-ceremony.
+[`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) for the unvarnished limitations.
 
 ---
 
 ## Documentation
 
-- [`docs/SPEC.md`](docs/SPEC.md) — byte-level `.pqss` format specification.
+- [`docs/SPEC.md`](docs/SPEC.md) — byte-level `.pqss` format specification (with a worked, test-pinned hex example).
 - [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) — in/out of scope, plainly stated.
 - [`docs/KNOWN-GAPS.md`](docs/KNOWN-GAPS.md) — real limitations, including the unflattering ones.
 - [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — trustee ceremony guide.
 - [`docs/test-vectors.md`](docs/test-vectors.md) — cross-implementation test vectors.
+- [`samples/`](samples) — three runnable samples: `SignerCustody` (authenticated 3-of-5 custody), `EnvelopeRecovery` (the wrap pattern, net8.0), and `pqss` (a real split/inspect/combine CLI).
 - [`SECURITY.md`](SECURITY.md) — how to report vulnerabilities.
+
+---
+
+## License
+
+MIT. See [`LICENSE`](LICENSE).
 
 ---
 
