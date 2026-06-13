@@ -1,0 +1,23 @@
+#nullable enable
+PostQuantum.SecretSharing.Vss.PedersenVss
+PostQuantum.SecretSharing.Vss.VssCommitments
+PostQuantum.SecretSharing.Vss.VssCommitments.Export() -> byte[]!
+PostQuantum.SecretSharing.Vss.VssCommitments.SecretLength.get -> int
+PostQuantum.SecretSharing.Vss.VssCommitments.Threshold.get -> int
+PostQuantum.SecretSharing.Vss.VssCommitments.TotalShares.get -> int
+PostQuantum.SecretSharing.Vss.VssShare
+PostQuantum.SecretSharing.Vss.VssShare.Export() -> byte[]!
+PostQuantum.SecretSharing.Vss.VssShare.ShareIndex.get -> int
+PostQuantum.SecretSharing.Vss.VssShare.Threshold.get -> int
+PostQuantum.SecretSharing.Vss.VssShare.TotalShares.get -> int
+PostQuantum.SecretSharing.Vss.VssShare.Verify(PostQuantum.SecretSharing.Vss.VssCommitments! commitments) -> bool
+PostQuantum.SecretSharing.Vss.VssSplit
+PostQuantum.SecretSharing.Vss.VssSplit.Commitments.get -> PostQuantum.SecretSharing.Vss.VssCommitments!
+PostQuantum.SecretSharing.Vss.VssSplit.Commitments.init -> void
+PostQuantum.SecretSharing.Vss.VssSplit.Shares.get -> PostQuantum.SecretSharing.Vss.VssShare![]!
+PostQuantum.SecretSharing.Vss.VssSplit.Shares.init -> void
+PostQuantum.SecretSharing.Vss.VssSplit.VssSplit(PostQuantum.SecretSharing.Vss.VssShare![]! Shares, PostQuantum.SecretSharing.Vss.VssCommitments! Commitments) -> void
+static PostQuantum.SecretSharing.Vss.PedersenVss.Reconstruct(System.Collections.Generic.IReadOnlyList<PostQuantum.SecretSharing.Vss.VssShare!>! shares, PostQuantum.SecretSharing.Vss.VssCommitments! commitments) -> PostQuantum.SecretSharing.ZeroizingBuffer!
+static PostQuantum.SecretSharing.Vss.PedersenVss.Split(System.ReadOnlySpan<byte> secret, PostQuantum.SecretSharing.SharePolicy! policy) -> PostQuantum.SecretSharing.Vss.VssSplit!
+static PostQuantum.SecretSharing.Vss.VssCommitments.Import(System.ReadOnlySpan<byte> bytes) -> PostQuantum.SecretSharing.Vss.VssCommitments!
+static PostQuantum.SecretSharing.Vss.VssShare.Import(System.ReadOnlySpan<byte> bytes) -> PostQuantum.SecretSharing.Vss.VssShare!

@@ -37,12 +37,16 @@ The information-theoretic core plus the engineering around it, complete:
 
 The hard problems v1 deliberately does **not** solve (see KNOWN-GAPS.md):
 
-- **Verifiable Secret Sharing (Feldman / Pedersen).** Detect a *malicious dealer*
-  who issues inconsistent shares. This needs a prime-order or elliptic-curve group
-  rather than GF(2⁸), so it is a genuine redesign of the secrecy layer, not a
-  patch — hence v2, behind a new format version.
+- **Verifiable Secret Sharing (Pedersen).** Detect a *malicious dealer* who issues
+  inconsistent shares. This needs a prime-order group rather than GF(2⁸), so it is a
+  parallel scheme, not a patch to the core. **Now shipping in preview** as the opt-in
+  [`PostQuantum.SecretSharing.Vss`](docs/VSS-DESIGN.md) package (`2.0.0-preview.1`):
+  Pedersen VSS over P-256, `.pqss` v2 records, secrecy still information-theoretic,
+  dealer-fraud detection computational. Path to stable: ML-DSA-signed commitments,
+  published cross-impl vectors, a sample, and review. The GF(2⁸) core stays
+  dependency-free and unchanged.
 - **Distributed proactive secret sharing.** Re-randomize shares across parties
-  *without* reconstructing the secret (v1's `Refresh` is quorum-mediated).
+  *without* reconstructing the secret (v1's `Refresh` is quorum-mediated). Still planned.
 - Possible additional authenticators behind `IShareAuthenticator` (the
   abstraction is intentionally narrow to allow this without breaking the API).
 
