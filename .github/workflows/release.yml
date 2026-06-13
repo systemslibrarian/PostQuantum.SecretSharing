@@ -1,0 +1,159 @@
+name: Release
+
+# Triggered by pushing a v*.*.* tag. Verifies the tag matches the csproj
+# <Version>, builds + tests + packs the package (with provenance + SBOM),
+# attaches the artifacts to a GitHub release, and publishes to nuget.org
+# using Trusted Publishing (OIDC) — no long-lived NUGET_API_KEY secret.
+#
+# One-time setup (nuget.org policy + NUGET_USER secret + nuget environment):
+# docs/TRUSTED-PUBLISHING.md.
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g. v1.0.0-rc.1). Required for manual runs."
+        required: true
+        type: string
+
+# Least-privilege default; the job widens only what it needs.
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+  CI: 'true'   # enables ContinuousIntegrationBuild via Directory.Build.props
+  PROJECT: 'src/PostQuantum.SecretSharing/PostQuantum.SecretSharing.csproj'
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  release:
+    name: Build, attest, release, publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # The "nuget" environment is where the Trusted Publishing policy on
+    # nuget.org is pinned (owner + repo + workflow file + environment), and
+    # where any manual-gate protection rules hang. Renaming it requires
+    # updating the nuget.org policy too. See docs/TRUSTED-PUBLISHING.md.
+    environment: nuget
+
+    permissions:
+      contents: write       # softprops/action-gh-release attaches the .nupkg files
+      id-token: write       # NuGet/login (OIDC key exchange) + attest-build-provenance (Sigstore)
+      attestations: write   # attest-build-provenance stores the attestation
+
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout (tag)
+        uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+        with:
+          ref: ${{ env.TAG }}
+          fetch-depth: 0
+
+      - name: Setup .NET (8 + 10)
+        uses: actions/setup-dotnet@9a946fdbd5fb07b82b2f5a4466058b876ab72bb2 # v5.3.0
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      # The csproj <Version> is the single source of truth (it gates the
+      # PublicAPI locks and package validation). The tag must match it, or
+      # we refuse to release rather than ship a mislabelled package.
+      - name: Verify tag matches csproj <Version>
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${TAG#v}"
+          csproj_version=$(grep -oE "<Version>[^<]+</Version>" "$PROJECT" | sed -E 's/<\/?Version>//g')
+          if [ "$tag" != "$csproj_version" ]; then
+            echo "::error::Tag $TAG (parsed '$tag') does not match <Version>$csproj_version</Version> in $PROJECT."
+            exit 1
+          fi
+          echo "Releasing PostQuantum.SecretSharing $csproj_version from $TAG."
+
+      - name: Restore
+        run: dotnet restore "$PROJECT"
+
+      - name: Build (reproducible)
+        run: dotnet build "$PROJECT" -c Release --no-restore
+
+      # Run the full test suite from the tagged state before publishing.
+      - name: Test
+        run: dotnet test PostQuantum.SecretSharing.sln -c Release
+
+      - name: Pack
+        run: dotnet pack "$PROJECT" -c Release --no-build -o artifacts
+
+      # Software Bill of Materials (CycloneDX) — same as CI.
+      - name: Generate SBOM (CycloneDX)
+        shell: bash
+        run: |
+          dotnet tool install --global CycloneDX
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          dotnet CycloneDX "$PROJECT" -o artifacts -j
+
+      - name: Compute SHA-256 hashes
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts
+          sha256sum *.nupkg *.snupkg | tee SHA256SUMS.txt
+
+      # Sigstore build provenance: anyone can verify a .nupkg was built by THIS
+      # repo's release workflow from THIS tag —
+      #   gh attestation verify <file>.nupkg --owner systemslibrarian
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          tag_name: ${{ env.TAG }}
+          name: PostQuantum.SecretSharing ${{ env.TAG }}
+          generate_release_notes: true
+          prerelease: ${{ contains(env.TAG, '-') }}
+          files: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+            artifacts/SHA256SUMS.txt
+            artifacts/bom.json
+
+      # ---------------------------------------------------------------
+      # Trusted Publishing: exchange the GitHub OIDC token for a
+      # short-lived (1-hour) nuget.org API key. The trust policy on
+      # nuget.org pins this exchange to owner + repo + workflow file +
+      # environment, so a fork can never authenticate.
+      # Setup runbook: docs/TRUSTED-PUBLISHING.md.
+      # ---------------------------------------------------------------
+      - name: NuGet login (OIDC -> short-lived API key)
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        id: nuget-login
+        with:
+          # nuget.org PROFILE NAME (not email). Stored as a repo secret so
+          # the public workflow source doesn't out the account to scrapers.
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Publish to NuGet
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push artifacts/*.nupkg \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
