@@ -102,33 +102,33 @@ internal sealed class StrictCborReader
         switch (ai)
         {
             case 24:
-            {
-                byte v = ReadRaw(1)[0];
-                if (v < 24)
-                    throw NonShortest();
-                return v;
-            }
+                {
+                    byte v = ReadRaw(1)[0];
+                    if (v < 24)
+                        throw NonShortest();
+                    return v;
+                }
             case 25:
-            {
-                ushort v = BinaryPrimitives.ReadUInt16BigEndian(ReadRaw(2));
-                if (v <= byte.MaxValue)
-                    throw NonShortest();
-                return v;
-            }
+                {
+                    ushort v = BinaryPrimitives.ReadUInt16BigEndian(ReadRaw(2));
+                    if (v <= byte.MaxValue)
+                        throw NonShortest();
+                    return v;
+                }
             case 26:
-            {
-                uint v = BinaryPrimitives.ReadUInt32BigEndian(ReadRaw(4));
-                if (v <= ushort.MaxValue)
-                    throw NonShortest();
-                return v;
-            }
+                {
+                    uint v = BinaryPrimitives.ReadUInt32BigEndian(ReadRaw(4));
+                    if (v <= ushort.MaxValue)
+                        throw NonShortest();
+                    return v;
+                }
             case 27:
-            {
-                ulong v = BinaryPrimitives.ReadUInt64BigEndian(ReadRaw(8));
-                if (v <= uint.MaxValue)
-                    throw NonShortest();
-                return v;
-            }
+                {
+                    ulong v = BinaryPrimitives.ReadUInt64BigEndian(ReadRaw(8));
+                    if (v <= uint.MaxValue)
+                        throw NonShortest();
+                    return v;
+                }
             case 31:
                 throw new ShareFormatException(
                     $"Indefinite-length encoding is not allowed at offset {_pos - 1}.");

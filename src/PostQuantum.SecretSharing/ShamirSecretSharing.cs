@@ -156,15 +156,15 @@ public static class ShamirSecretSharing
         int len = first.SecretLength;
         var xs = new byte[k];
         var ys = new byte[k][];
-        for (int i = 0; i < k; i++)
-        {
-            xs[i] = (byte)shares[i].ShareIndex;
-            ys[i] = shares[i].ShareData.ToArray();
-        }
-
         var buffer = new ZeroizingBuffer(len);
         try
         {
+            for (int i = 0; i < k; i++)
+            {
+                xs[i] = (byte)shares[i].ShareIndex;
+                ys[i] = shares[i].ShareData.ToArray();
+            }
+
             ShamirCore.Reconstruct(xs, ys, buffer.Span);
 
             // --- Check value: recompute and compare in constant time ---
@@ -192,7 +192,10 @@ public static class ShamirSecretSharing
         finally
         {
             foreach (byte[] y in ys)
-                CryptographicOperations.ZeroMemory(y);
+            {
+                if (y is not null)
+                    CryptographicOperations.ZeroMemory(y);
+            }
         }
     }
 
