@@ -9,6 +9,28 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **`PostQuantum.SecretSharing.Vss` (`2.0.0-preview.1`) — opt-in Verifiable Secret
+  Sharing.** Pedersen VSS over NIST P-256 detects a *malicious dealer* who hands out
+  inconsistent shares: each trustee can `Verify` their share against the dealer's
+  public commitments before any reconstruction, and `Reconstruct` re-verifies and
+  refuses to return a wrong secret. Secrecy stays information-theoretic /
+  post-quantum (commitments are perfectly hiding); only the dealer-fraud *detection*
+  is computational (discrete-log binding) — documented exactly like the ML-DSA layer.
+  Kept in a **separate package** so the core stays dependency-free; its one vetted
+  dependency (BouncyCastle) is isolated there. New `.pqss` v2 records, a pinned
+  nothing-up-my-sleeve `H` vector, and a full test suite (round-trip, quorum
+  agreement, tamper/malicious-dealer detection, fail-closed parsing, group-math and
+  interpolation checks). Preview-quality, unaudited new crypto. See
+  [`docs/VSS-DESIGN.md`](docs/VSS-DESIGN.md).
+- **CBOR-layer property tests at the codec primitive level**
+  (`FsCheckCborLayerTests` + boundary-biased generators): writer∘reader inverse over
+  the full integer range, canonical re-encoding, and rejection of non-shortest,
+  indefinite, reserved, wrong-type, and truncated encodings — plus RFC 8949
+  boundary vectors. Complements the existing `Import`-level properties.
+- **Audit kit** ([`docs/AUDIT.md`](docs/AUDIT.md)): a reviewer entry point (scope,
+  one-command bootstrap, ranked highest-risk components with evidence, reproduce-each-claim
+  table, dependency provenance, time-boxed review paths, checklist) so the codebase
+  is cheap to audit.
 - **FsCheck property tests with shrinking** over the CBOR layer
   (`FsCheckCborTests` + generators): arbitrary-bytes crash-freedom, structured
   CBOR maps with deliberately-wrong contents, valid-share round-trip, and valid

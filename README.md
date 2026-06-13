@@ -49,6 +49,35 @@ using ZeroizingBuffer recovered = ShamirSecretSharing.Reconstruct(quorum);
 That's the whole idea. The rest of this README is about *when you need it* and
 *how to use it correctly*.
 
+### Why this over a general-purpose Shamir library?
+
+A textbook Shamir gist — or a general-purpose package like
+[SecretSharingDotNet](https://www.nuget.org/packages/SecretSharingDotNet) — splits
+a secret and hands you the pieces. The math is the easy 5%. This library is built
+around the other 95% — keeping the *share* trustworthy and the *ceremony*
+operable:
+
+- **Constant-time, table-free GF(2⁸) math.** No secret-indexed log/antilog table
+  lookups — the classic cache-timing leak in Shamir implementations.
+- **Authenticated shares (ML-DSA-65 / FIPS 204).** Detect a tampered or
+  substituted share, pinned to *your* dealer key. Generic libraries hand back raw
+  field points with nothing to verify.
+- **A strict, canonical, self-describing share format (`.pqss`).** Versioned,
+  fail-closed, fuzzed, and spec'd to the byte — not a bare `BigInteger` or base64
+  blob you have to frame, version, and validate yourself.
+- **Pinned, zeroizing, page-locked secret memory.** The reconstructed secret lands
+  in a `ZeroizingBuffer` the GC can't relocate-and-copy, wiped on dispose — not a
+  `string`/`byte[]` left for the collector to scatter.
+- **A built-in wrap helper for low-entropy secrets.** `WrappedSecret` splits a
+  random KEK and AES-256-GCM-seals your real secret, closing the offline-guessing
+  oracle that bites naïve splitting of passphrases.
+- **Ceremony tooling and operations docs.** A real `pqss` CLI, five runnable
+  samples, and a trustee operations guide — not just a `Split()` you wire up alone.
+
+If all you need is the polynomial math, a generic library is fine. If the secret
+is *important enough to split*, the authentication, format, memory hygiene, and
+ceremony around it are the actual job — and that is what this package is.
+
 ---
 
 ## The need: where one key becomes one liability
@@ -475,11 +504,53 @@ them. Treat it as a well-built primitive pending independent review. See
 
 ---
 
+## Status & roadmap
+
+**Current release: `1.0.0-rc.1`.** The information-theoretic core and the
+engineering around it are feature-complete; the API and the `.pqss` format are
+considered stable for the RC line and will not change without a SemVer signal.
+
+| Area | Status |
+|------|:------:|
+| Shamir split/reconstruct over GF(2⁸), constant-time field math | ✅ Stable |
+| Strict canonical `.pqss` format (spec'd, fuzzed, property-tested) | ✅ Stable |
+| HKDF-SHA256 integrity check value | ✅ Stable |
+| `ZeroizingBuffer` (pinned, zeroizing, best-effort page-lock) | ✅ Stable |
+| ML-DSA-65 dealer authentication with key pinning *(net10.0)* | ✅ Stable |
+| `WrappedSecret`, `Refresh`, `DealerCommitment`, per-share verify | ✅ Stable |
+| `pqss` CLI, five samples, full docs | ✅ Stable |
+| Independent security audit | ⏳ Not yet — *honestly stated, not implied* |
+
+**What you can expect next** (intent, not a promise — full detail in
+[`ROADMAP.md`](ROADMAP.md)):
+
+- **Toward `1.0.0` stable:** independent review of the GF(2⁸) math and the CBOR
+  codec, a written-up real-world dogfooding deployment, and a quiet RC period with
+  no format/API churn.
+- **`1.x` (additive, non-breaking):** more ecosystem samples (EF Core master key,
+  cloud-KMS hybrid), more published cross-implementation test vectors, and an
+  optional `…Extensions` package for higher-level ceremony helpers.
+- **`v2` (opt-in, in preview now):** Verifiable Secret Sharing to detect a
+  *malicious dealer* ships as the separate
+  [`PostQuantum.SecretSharing.Vss`](docs/VSS-DESIGN.md) package (`2.0.0-preview.1`) —
+  Pedersen VSS over P-256, kept out of the dependency-free core. Secrecy stays
+  information-theoretic; only the dealer-fraud *detection* is computational (the
+  honest tradeoff, documented). Distributed proactive refresh is still planned. See
+  [`docs/KNOWN-GAPS.md`](docs/KNOWN-GAPS.md) §1.
+
+What this deliberately is **not**, now or planned: a KMS, a way to safely split
+low-entropy secrets directly (use `WrappedSecret`), or a defense against power/EM
+side channels and process memory dumps.
+
+---
+
 ## Documentation
 
 - [`docs/SPEC.md`](docs/SPEC.md) — byte-level `.pqss` format specification (with a worked, test-pinned hex example).
 - [`docs/THREAT-MODEL.md`](docs/THREAT-MODEL.md) — in/out of scope, plainly stated.
 - [`docs/KNOWN-GAPS.md`](docs/KNOWN-GAPS.md) — real limitations, including the unflattering ones.
+- [`docs/AUDIT.md`](docs/AUDIT.md) — reviewer's audit kit: scope, repro, ranked risk areas, and a checklist (we want this cheap to audit).
+- [`docs/VSS-DESIGN.md`](docs/VSS-DESIGN.md) — design + tradeoffs of the opt-in Verifiable Secret Sharing (Pedersen) preview package, and [`docs/test-vectors-vss.md`](docs/test-vectors-vss.md).
 - [`docs/OPERATIONS.md`](docs/OPERATIONS.md) — trustee ceremony guide.
 - [`docs/CASE-STUDY-signing-key.md`](docs/CASE-STUDY-signing-key.md) — a verified, reproducible ceremony protecting a code-signing key (with byte-identical + signature proofs).
 - [`docs/test-vectors.md`](docs/test-vectors.md) — cross-implementation test vectors.

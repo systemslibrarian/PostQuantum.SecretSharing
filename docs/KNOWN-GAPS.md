@@ -4,14 +4,27 @@ An honest, plainly-stated list of this package's limitations — including the o
 that make it look worse. "Carefully engineered" and "audited" are different
 claims; this file is part of keeping that distinction honest.
 
-## 1. No Verifiable Secret Sharing (malicious dealer)
+## 1. Verifiable Secret Sharing (malicious dealer) — core no; opt-in preview yes
 
-v1 authenticates shares *against the dealer* but cannot detect a **malicious
-dealer** who issues inconsistent shares to different trustees (so that different
-quorums recover different secrets, or some quorums recover nothing). Defending
-against this requires Verifiable Secret Sharing — Feldman or Pedersen VSS — which
-is explicitly deferred to **v2**. If your threat model includes a dishonest
-dealer, this package is not sufficient on its own.
+The **GF(2⁸) core** authenticates shares *against the dealer* but cannot detect a
+**malicious dealer** who issues inconsistent shares to different trustees (so that
+different quorums recover different secrets, or some recover nothing). Defending
+against that requires Verifiable Secret Sharing, which needs a prime-order group
+rather than GF(2⁸) — so it is **not** part of the core and never will be.
+
+It is available as an **opt-in preview package**,
+[`PostQuantum.SecretSharing.Vss`](VSS-DESIGN.md) (`2.0.0-preview.1`), implementing
+**Pedersen VSS** over NIST P-256. Two things to understand before relying on it:
+
+- **Secrecy stays information-theoretic / post-quantum.** Pedersen commitments are
+  perfectly hiding; the transcript reveals nothing about the secret. The core
+  guarantee is unchanged.
+- **Dealer-fraud *detection* is computational.** Commitment binding rests on
+  discrete-log hardness, so a *quantum dealer* could in principle equivocate — it is
+  the detection, not the secrecy, that is classical. The package is also **preview,
+  unaudited new crypto**, and (this first preview) does not yet ML-DSA-sign the
+  commitment broadcast, so the commitments must be **pinned out-of-band** like the
+  dealer key. See [`VSS-DESIGN.md`](VSS-DESIGN.md) §2 and §7.
 
 ## 2. Check-value oracle for low-entropy secrets
 

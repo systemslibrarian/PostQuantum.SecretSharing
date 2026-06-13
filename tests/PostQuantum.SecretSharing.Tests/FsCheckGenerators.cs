@@ -179,3 +179,93 @@ public static class CborModelArbitrary
         if (m.Indefinite) yield return m with { Indefinite = false };
     }
 }
+
+// ── CBOR primitive values (direct reader/writer round-trip + rejection) ───────
+
+/// <summary>
+/// A single CBOR unsigned integer, biased toward the values that straddle every
+/// shortest-form width boundary (inline / 1 / 2 / 4 / 8 bytes) — the exact places
+/// a non-canonical-integer bug hides. Shrinks toward 0 and toward each boundary.
+/// </summary>
+public sealed record CborUInt(ulong Value);
+
+public static class CborUIntArbitrary
+{
+    /// <summary>Values one step on either side of every CBOR integer-width boundary.</summary>
+    internal static readonly ulong[] Boundaries =
+    {
+        0, 1, 22, 23, 24, 25, 254, 255, 256, 257,
+        65534, 65535, 65536, 65537,
+        uint.MaxValue - 1, uint.MaxValue, (ulong)uint.MaxValue + 1,
+        ulong.MaxValue - 1, ulong.MaxValue,
+    };
+
+    /// <summary>Full-range generator: mostly random ulongs, sometimes a boundary value.</summary>
+    internal static readonly Gen<ulong> UInt =
+        Gen.Frequency(new[]
+        {
+            Tuple.Create(1, Gen.Elements(Boundaries)),
+            Tuple.Create(3, RandomUInt()),
+        });
+
+    public static Arbitrary<CborUInt> UInts() =>
+        Arb.From(UInt.Select(v => new CborUInt(v)), Shrink);
+
+    private static Gen<ulong> RandomUInt() =>
+        from b0 in Gen.Choose(0, 255)
+        from b1 in Gen.Choose(0, 255)
+        from b2 in Gen.Choose(0, 255)
+        from b3 in Gen.Choose(0, 255)
+        from b4 in Gen.Choose(0, 255)
+        from b5 in Gen.Choose(0, 255)
+        from b6 in Gen.Choose(0, 255)
+        from b7 in Gen.Choose(0, 255)
+        select ((ulong)(uint)b0 << 56) | ((ulong)(uint)b1 << 48) | ((ulong)(uint)b2 << 40) | ((ulong)(uint)b3 << 32)
+             | ((ulong)(uint)b4 << 24) | ((ulong)(uint)b5 << 16) | ((ulong)(uint)b6 << 8) | (ulong)(uint)b7;
+
+    private static IEnumerable<CborUInt> Shrink(CborUInt u)
+    {
+        ulong v = u.Value;
+        foreach (ulong c in new ulong[] { 0, 1, 23, 24, 255, 256, 65535, 65536, uint.MaxValue })
+            if (c < v) yield return new CborUInt(c);
+        if (v > 1) yield return new CborUInt(v / 2);
+        if (v > 0) yield return new CborUInt(v - 1);
+    }
+}
+
+// ── Sequences of mixed CBOR primitives (composition round-trip) ───────────────
+
+public abstract record CborPrim;
+public sealed record PUInt(ulong V) : CborPrim;
+public sealed record PBytes(byte[] B) : CborPrim;
+public sealed record PText(string S) : CborPrim;
+
+/// <summary>An ordered run of primitives, to verify they read back in the same order.</summary>
+public sealed record CborSequence(CborPrim[] Items);
+
+public static class CborSequenceArbitrary
+{
+    // Only well-formed-UTF-8 characters (no lone surrogates), so text round-trips
+    // byte-identically through the lenient writer and the strict reader.
+    private static readonly char[] SafeChars = { 'a', 'Z', '9', ' ', '_', 'é', '€', '中', 'π', '✓' };
+
+    public static Arbitrary<CborSequence> Sequences()
+    {
+        Gen<string> text = Gen.ArrayOf(Gen.Elements(SafeChars)).Select(cs => new string(cs));
+        Gen<byte[]> bytes = Gen.ArrayOf(Gen.Choose(0, 255)).Select(a => a.Select(x => (byte)x).ToArray());
+        Gen<CborPrim> prim = Gen.OneOf(new[]
+        {
+            CborUIntArbitrary.UInt.Select(v => (CborPrim)new PUInt(v)),
+            bytes.Select(b => (CborPrim)new PBytes(b)),
+            text.Select(s => (CborPrim)new PText(s)),
+        });
+        Gen<CborSequence> gen = Gen.ArrayOf(prim).Select(items => new CborSequence(items));
+        return Arb.From(gen, Shrink);
+    }
+
+    private static IEnumerable<CborSequence> Shrink(CborSequence s)
+    {
+        for (int i = 0; i < s.Items.Length; i++)
+            yield return new CborSequence(s.Items.Where((_, idx) => idx != i).ToArray());
+    }
+}
