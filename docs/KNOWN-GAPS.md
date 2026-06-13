@@ -19,17 +19,21 @@ Every share embeds `splitId` and `checkValue = HKDF-SHA256(secret, splitId, …)
 Anyone holding **one** share can therefore test guesses of the secret offline,
 with no quorum. For a 32-byte random key this is a `2²⁵⁶` search and irrelevant.
 For a passphrase, PIN, or any guessable secret, it is a practical brute-force
-oracle. **Split keys, not passwords** — or split a random key that wraps your
-real secret.
+oracle. **Split keys, not passwords** — or use the built-in `WrappedSecret`
+helper, which splits a random KEK and AES-256-GCM-wraps your real secret so the
+oracle only ever sees a high-entropy KEK. (Note `DealerCommitment` is a hash of
+the secret and carries the *same* oracle caveat — commit to high-entropy values.)
 
-## 3. No memory page-locking (mlock)
+## 3. Memory page-locking is best-effort
 
-`ZeroizingBuffer` pins its backing array on the pinned object heap, so the GC
-cannot relocate (and thus silently copy) the secret, and it zeroes on dispose.
-It does **not** prevent the OS from paging the buffer to disk (swap), and it does
-not defend against a process memory dump. `mlock`/`VirtualLock` is not
-implemented in v1. The secret necessarily exists in cleartext in process memory
-while in use.
+`ZeroizingBuffer` pins its backing array on the pinned object heap (so the GC
+cannot relocate and silently copy the secret), zeroes on dispose, and now
+attempts to lock its pages into RAM (`VirtualLock`/`mlock`) to resist swap —
+reporting success via `IsMemoryLocked`. This is **best-effort**: locking can fail
+without privileges or when the per-process locked-memory limit is reached, in
+which case the buffer still works but is not swap-protected. Locking does **not**
+defend against a process memory dump, and the secret necessarily exists in
+cleartext in process memory while in use.
 
 ## 4. Finalizer zeroization is best-effort
 
@@ -38,13 +42,17 @@ called. This is a backstop, not a guarantee: the window between last use and
 garbage collection is unbounded, and process termination may skip finalizers
 entirely. **Always dispose** (`using`).
 
-## 5. No share refresh / proactive secret sharing
+## 5. Refresh is quorum-mediated, not distributed-proactive
 
-There is no mechanism to re-randomize shares without changing the secret
-(proactive secret sharing), nor to add/revoke an individual share. To change the
-custody set you must re-split. Because old shares of the *old* split remain valid
-for the *old* secret, departing-trustee scenarios require rotating the underlying
-secret, not just re-splitting (see OPERATIONS.md, "revocation always rotates").
+`ShamirSecretSharing.Refresh` rotates custody by re-splitting the secret into a
+fresh set of shares with a new `splitId` (old shares no longer interoperate with
+new ones). It is **quorum-mediated**: it briefly reconstructs the secret in a
+`ZeroizingBuffer` and re-splits. It is *not* proactive secret sharing in the
+academic sense — there is no distributed protocol that re-randomizes shares across
+parties without ever reconstructing. Also note that, because `Refresh` keeps the
+*same* secret, old shares still reconstruct it among themselves; if you are
+rotating because a share may be compromised, rotate the underlying secret instead
+(see OPERATIONS.md, "revocation always rotates").
 
 ## 6. CBOR parsing is not constant-time
 

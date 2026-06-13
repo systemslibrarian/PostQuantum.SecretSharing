@@ -49,7 +49,8 @@ core running on net8.0 with **no ML-DSA dependency**, sub-quorum refusal.
 ## 3. `pqss` (PqssCli) — a real command-line utility (net10.0)
 
 A small but genuinely usable CLI over the `.pqss` format: `split`, `inspect`,
-`combine`.
+`combine`, and `refresh` — with optional dealer signing, the wrap pattern
+(`--wrap`/`--envelope`), and dealer commitments (`--commit-out`/`--commit`).
 
 ```bash
 # Build it once
@@ -68,8 +69,20 @@ dotnet run --project samples/PqssCli -- combine \
     --out recovered.bin --pub ./shares/dealer.pub
 ```
 
-Demonstrates: file-based split/inspect/combine, optional dealer signing and
-pinning, friendly fail-closed error reporting, metadata inspection that exposes
-nothing secret.
+```bash
+# Protect a low-entropy passphrase safely with the wrap pattern, then recover it
+echo -n 'correct horse battery staple' > pass.txt
+dotnet run --project samples/PqssCli -- split pass.txt --k 2 --n 3 --out ./vault --wrap
+dotnet run --project samples/PqssCli -- combine ./vault/share-1.pqss ./vault/share-2.pqss \
+    --out pass.out --envelope ./vault/envelope.bin
+
+# Rotate custody after a trustee departs (new splitId; old shares stop interoperating)
+dotnet run --project samples/PqssCli -- refresh ./shares/share-1.pqss ./shares/share-3.pqss \
+    ./shares/share-5.pqss --out ./shares-v2
+```
+
+Demonstrates: file-based split/inspect/combine/refresh, the wrap pattern, dealer
+signing + pinning, one-time dealer commitments, friendly fail-closed error
+reporting, and metadata inspection that exposes nothing secret.
 
 Run `dotnet run --project samples/PqssCli -- --help` for full usage.

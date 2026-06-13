@@ -1,5 +1,6 @@
 #if NET10_0_OR_GREATER
 using System.Security.Cryptography;
+using System.Text;
 using Xunit;
 
 namespace PostQuantum.SecretSharing.Tests;
@@ -141,6 +142,45 @@ public class MlDsaTests
         using var dealer = MlDsa65ShareAuthenticator.Generate();
         Assert.Equal(SecretShare.MlDsa65PublicKeyLength, dealer.PublicKey.Length);
         Assert.Equal(SecretShare.MlDsa65SignatureLength, dealer.Sign(new byte[] { 9 }).Length);
+    }
+
+    [SkippableFact]
+    public void WrappedSplit_Authenticated_RoundTrips_WithPin()
+    {
+        Skip.IfNot(MLDsa.IsSupported, "ML-DSA-65 not supported on this platform.");
+
+        using var dealer = MlDsa65ShareAuthenticator.Generate();
+        byte[] doc = Encoding.UTF8.GetBytes("low-entropy break-glass code: 4242");
+        WrappedSplit w = WrappedSecret.Split(doc, new SharePolicy(2, 3), dealer);
+
+        Assert.All(w.Shares, s => Assert.Equal(ShareAuthenticationKind.MlDsa65, s.Authentication));
+
+        using ZeroizingBuffer recovered = WrappedSecret.Reconstruct(
+            new[] { w.Shares[0], w.Shares[2] }, w.Envelope, dealer.PublicKey);
+        Assert.True(doc.AsSpan().SequenceEqual(recovered.Span));
+    }
+
+    [SkippableFact]
+    public void Refresh_WithNewDealer_ReauthenticatesShares()
+    {
+        Skip.IfNot(MLDsa.IsSupported, "ML-DSA-65 not supported on this platform.");
+
+        using var oldDealer = MlDsa65ShareAuthenticator.Generate();
+        byte[] secret = Secret;
+        SecretShare[] original = ShamirSecretSharing.Split(secret, new SharePolicy(2, 3), oldDealer);
+
+        using var newDealer = MlDsa65ShareAuthenticator.Generate();
+        SecretShare[] refreshed = ShamirSecretSharing.Refresh(
+            new[] { original[0], original[1] },
+            newPolicy: null,
+            expectedDealerPublicKey: oldDealer.PublicKey,
+            newDealer: newDealer);
+
+        // New shares verify under the NEW dealer, not the old one.
+        using ZeroizingBuffer ok = ShamirSecretSharing.Reconstruct(new[] { refreshed[0], refreshed[2] }, newDealer.PublicKey);
+        Assert.True(secret.AsSpan().SequenceEqual(ok.Span));
+        Assert.Throws<ShareAuthenticationException>(
+            () => ShamirSecretSharing.Reconstruct(new[] { refreshed[0], refreshed[2] }, oldDealer.PublicKey));
     }
 
     private static SecretShare TamperShareData(SecretShare s)

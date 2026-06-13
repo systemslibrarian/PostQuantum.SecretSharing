@@ -192,7 +192,28 @@ and pick **N − K ≥ 2** so you can lose two shares and still recover. Limits:
 **Do not split a passphrase, PIN, or short password directly.** Every share
 carries an HKDF check value that lets a *single* shareholder brute-force a
 guessable secret offline (see "When NOT to use this"). Instead, split a random
-key and let that key wrap your real secret:
+key and let that key wrap your real secret.
+
+The library does this for you with `WrappedSecret`:
+
+```csharp
+using PostQuantum.SecretSharing;
+using System.Text;
+
+byte[] realSecret = Encoding.UTF8.GetBytes("correct horse battery staple"); // low entropy!
+
+// Generates a random KEK, AES-256-GCM-seals your secret, and splits the KEK.
+WrappedSplit w = WrappedSecret.Split(realSecret, new SharePolicy(3, 5));
+//   w.Shares   → give to trustees
+//   w.Envelope → store anywhere; it is NOT secret
+
+// Recover: any 3 KEK shares + the envelope.
+using ZeroizingBuffer recovered = WrappedSecret.Reconstruct(
+    new[] { w.Shares[0], w.Shares[2], w.Shares[4] }, w.Envelope);
+```
+
+Under the hood that is exactly the pattern below — shown explicitly in case you
+want to manage the envelope yourself:
 
 ```csharp
 using PostQuantum.SecretSharing;
@@ -231,10 +252,14 @@ using (var aes = new AesGcm(recoveredKek.Span, tag.Length))
 | `ShamirSecretSharing.Split(secret, policy, dealer)` | Split into `N` dealer-signed shares. |
 | `ShamirSecretSharing.Reconstruct(shares)` | Rebuild from **exactly K** shares; returns a `ZeroizingBuffer`. |
 | `ShamirSecretSharing.Reconstruct(shares, expectedDealerPublicKey)` | As above, but require every share to verify against the pinned key. |
+| `ShamirSecretSharing.Refresh(shares, newPolicy?, expectedDealerPublicKey?, newDealer?)` | Rotate custody: re-split the same secret into fresh shares with a new `splitId` (old shares stop interoperating). |
+| `WrappedSecret.Split(secret, policy[, dealer])` | Safe path for low-entropy/large secrets: random KEK + AES-256-GCM envelope; splits the KEK. Returns `WrappedSplit { Shares, Envelope }`. |
+| `WrappedSecret.Reconstruct(shares, envelope[, expectedDealerPublicKey])` | Reconstruct the KEK and decrypt the envelope; returns a `ZeroizingBuffer`. |
+| `DealerCommitment.Compute(secret)` / `.Verify(secret, commitment)` | Publish a one-time commitment to the intended secret; quorums confirm they recovered *that* value (not full VSS — see below). |
 | `SecretShare.Export()` | Canonical `.pqss` bytes for distribution/storage. |
 | `SecretShare.Import(bytes)` | Strict, fail-closed parse of `.pqss` bytes. |
 | `SecretShare.{Threshold, TotalShares, ShareIndex, SecretLength, SplitId, Authentication, DealerPublicKey}` | Public metadata. (Raw `y` data is intentionally **not** exposed.) |
-| `ZeroizingBuffer.Span` / `.Length` / `.Dispose()` | Pinned, zeroizing access to the recovered secret. |
+| `ZeroizingBuffer.Span` / `.Length` / `.IsMemoryLocked` / `.Dispose()` | Pinned, page-locked (best-effort), zeroizing access to the recovered secret. |
 | `IShareAuthenticator` | Dealer-signer abstraction (`Kind`, `PublicKey`, `Sign`). |
 | `MlDsa65ShareAuthenticator` *(net10.0)* | `Generate()`, `ImportPrivateKey()`, `ExportPrivateKey()`, `PublicKey`, `Sign()`. |
 | `ShareAuthenticationKind` | `None` (0) or `MlDsa65` (1). |
@@ -291,15 +316,21 @@ pin you obtained out-of-band proves the shares came from *your* dealer.
   The integrity check value travels inside every share and is an **offline
   brute-force oracle**: a single shareholder can test guesses without any quorum.
   For a 32-byte random key this is irrelevant (2²⁵⁶ search). **Split keys, not
-  passwords** — or use the [wrap pattern](#splitting-low-entropy-secrets-safely-the-wrap-pattern).
+  passwords** — or use the built-in
+  [`WrappedSecret`](#splitting-low-entropy-secrets-safely-the-wrap-pattern) helper,
+  which splits a random key and wraps your real secret for you.
 - **You have a single custodian.** Sharing among one person is pointless ceremony;
   just encrypt the secret.
 - **You need verifiable secret sharing (VSS).** A *malicious dealer* can hand
   inconsistent shares to different trustees. v1 authenticates shares *against the
-  dealer*; it cannot detect a dealer lying *differently* to different trustees.
-  Feldman/Pedersen VSS is explicitly a **v2** concern.
-- **You need share refresh / proactive secret sharing.** Rotating shares without
-  changing the secret is not in v1.
+  dealer* and offers `DealerCommitment` (a one-time published commitment to the
+  intended secret), but it cannot *prove* shares are mutually consistent before
+  reconstruction. Full Feldman/Pedersen VSS needs a prime/EC group rather than
+  GF(2⁸) and is explicitly a **v2** concern.
+- **You need *distributed* proactive secret sharing.** `Refresh` rotates shares
+  (re-split, new `splitId`) but is quorum-mediated — it briefly reconstructs the
+  secret. A protocol that re-randomizes shares across parties *without* any
+  reconstruction is out of scope.
 - **You need a KMS.** This is a primitive, not a key-management service.
 
 ---

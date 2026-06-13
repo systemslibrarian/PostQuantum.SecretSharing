@@ -196,6 +196,49 @@ public static class ShamirSecretSharing
         }
     }
 
+    /// <summary>
+    /// Re-splits the secret into a brand-new set of shares (with a new
+    /// <c>splitId</c>), so that shares from the previous split can no longer be
+    /// combined with the new ones. Use this to rotate custody — e.g. when a
+    /// trustee departs — without changing the underlying secret.
+    /// </summary>
+    /// <param name="shares">Exactly <c>k</c> shares of the current split.</param>
+    /// <param name="newPolicy">The policy for the new split; defaults to the current <c>(k, n)</c>.</param>
+    /// <param name="expectedDealerPublicKey">Optional pin verified against the <em>incoming</em> shares.</param>
+    /// <param name="newDealer">If supplied, the <em>new</em> shares are authenticated by this dealer.</param>
+    /// <remarks>
+    /// <para>
+    /// This is quorum-mediated refresh: the secret is briefly reconstructed in a
+    /// <see cref="ZeroizingBuffer"/> (wiped before return) and re-split. It is not
+    /// <em>proactive</em> secret sharing (which re-randomizes shares across parties
+    /// without ever reconstructing) — that distributed protocol is out of scope.
+    /// </para>
+    /// <para>
+    /// Because the secret is unchanged, old shares still reconstruct it among
+    /// themselves. If you are rotating because a share may be compromised, rotate
+    /// the underlying secret instead (see OPERATIONS.md, "revocation always
+    /// rotates").
+    /// </para>
+    /// </remarks>
+    public static SecretShare[] Refresh(
+        IReadOnlyList<SecretShare> shares,
+        SharePolicy? newPolicy = null,
+        ReadOnlyMemory<byte>? expectedDealerPublicKey = null,
+        IShareAuthenticator? newDealer = null)
+    {
+        ArgumentNullException.ThrowIfNull(shares);
+        if (shares.Count == 0)
+            throw new SharePolicyException("No shares supplied.");
+
+        SecretShare first = shares[0] ?? throw new ShareConsistencyException("A supplied share was null.");
+        SharePolicy policy = newPolicy ?? new SharePolicy(first.Threshold, first.TotalShares);
+
+        using ZeroizingBuffer secret = Reconstruct(shares, expectedDealerPublicKey);
+        return newDealer is null
+            ? Split(secret.Span, policy)
+            : Split(secret.Span, policy, newDealer);
+    }
+
     private static void VerifyAuthentication(
         IReadOnlyList<SecretShare> shares, SecretShare first, ReadOnlyMemory<byte>? expectedDealerPublicKey)
     {

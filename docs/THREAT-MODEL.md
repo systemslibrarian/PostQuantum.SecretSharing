@@ -27,15 +27,17 @@ memory hygiene, and the behavior of the integrity check value.
 | **Accidental corruption of a share** | HKDF-SHA256 check value recomputed and compared (constant-time) at reconstruction. |
 | **Cache-timing on field math** | Mitigated: GF(2⁸) multiplication and inversion are branchless, fixed-iteration, and table-free (no secret-indexed lookups). |
 | **GC relocation leaving stale secret copies** | Mitigated: reconstructed secrets land in a pinned-object-heap `ZeroizingBuffer` that the GC cannot move; it is zeroed on dispose. |
+| **Secret paged to swap** | Mitigated best-effort: `ZeroizingBuffer` locks its pages (`VirtualLock`/`mlock`); `IsMemoryLocked` reports success. Can fail without privileges (then unprotected). |
+| **Low-entropy secret exposed to the check-value oracle** | Mitigated by `WrappedSecret`: split a random high-entropy KEK and AES-256-GCM-wrap the real secret, so the oracle never sees guessable material. |
 | **Wrong-quorum / operator error at reconstruct** | Exactly-`k` shares required; extra shares are rejected rather than silently subset-selected. |
 
 ## Out of scope (NOT defended) — stated bluntly
 
 | Threat | Status / rationale |
 |--------|--------------------|
-| **A malicious dealer** | Out of scope for v1. A dishonest dealer can hand inconsistent shares to different trustees so that different quorums reconstruct different secrets, or distribute shares that do not reconstruct at all. v1 authenticates shares *against the dealer*; it cannot detect the dealer lying *differently* to different trustees. Verifiable Secret Sharing (Feldman/Pedersen VSS) is explicitly a **v2** goal. |
+| **A malicious dealer** | Partially mitigated; full defense out of scope for v1. A dishonest dealer can hand inconsistent shares to different trustees so that different quorums reconstruct different secrets, or distribute shares that do not reconstruct at all. v1 authenticates shares *against the dealer* and offers `DealerCommitment` — a one-time, out-of-band commitment to the *single* intended secret that lets quorums notice they recovered different values (effective only if the commitment is published non-equivocably, like the pin). It still cannot *prove*, before reconstruction, that shares are mutually consistent. Verifiable Secret Sharing (Feldman/Pedersen VSS) — which needs a prime/EC group rather than GF(2⁸) — is explicitly a **v2** goal. |
 | **Low-entropy secrets (the check-value oracle)** | Out of scope. Each share carries `splitId` + `checkValue`, which together form an **offline guessing oracle**: a single shareholder can test secret guesses without a quorum. Irrelevant for high-entropy keys; fatal for passphrases/PINs. **Split keys, not passwords.** |
-| **Memory-dump and swap attackers** | Out of scope. The secret exists in cleartext in process memory while in use. Pinning prevents GC copies but not OS paging to disk (swap). Page-locking (`mlock`/`VirtualLock`) is not implemented in v1. |
+| **Memory-dump attackers** | Out of scope. The secret exists in cleartext in process memory while in use; a process memory dump can read it. (Swap is now resisted best-effort — see the in-scope table.) |
 | **Side channels beyond cache timing** | Out of scope. Power analysis, electromagnetic emanation, and microarchitectural attacks beyond the table-free mitigation are not addressed. |
 | **Trustee collusion of size ≥ k** | Out of scope *by design*. Any `k` cooperating trustees can reconstruct — that is the whole point of a `k`-of-`n` scheme. Choose `k` accordingly. |
 | **Availability when too many shares are lost** | Out of scope. If more than `n−k` shares are destroyed, the secret is unrecoverable. Choose `n−k ≥ 2` (see OPERATIONS.md). |
