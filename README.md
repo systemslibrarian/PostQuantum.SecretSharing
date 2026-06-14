@@ -21,7 +21,7 @@ backup is a single point of failure or a single point of compromise.
 ```
 
 ```bash
-dotnet add package PostQuantum.SecretSharing --version 2.1.0
+dotnet add package PostQuantum.SecretSharing --version 2.2.0
 ```
 
 ```csharp
@@ -365,10 +365,12 @@ pin you obtained out-of-band proves the shares came from *your* dealer.
   [`PostQuantum.SecretSharing.Vss`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md)
   package (Pedersen VSS over P-256, with optional ML-DSA-65 broadcast signing) — kept out
   of the core so the core stays dependency-free.
-- **You need *distributed* proactive secret sharing.** `Refresh` rotates shares
-  (re-split, new `splitId`) but is quorum-mediated — it briefly reconstructs the
-  secret. A protocol that re-randomizes shares across parties *without* any
-  reconstruction is out of scope.
+- **You need *distributed* proactive secret sharing in the core.** The core's `Refresh`
+  rotates shares (re-split, new `splitId`) but is quorum-mediated — it briefly reconstructs
+  the secret. A protocol that re-randomizes shares across parties (or a co-located set)
+  *without* any reconstruction ships **separately** in the opt-in
+  [`PostQuantum.SecretSharing.Extensions`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/PROACTIVE-REFRESH.md)
+  package (`ProactiveRefresh`) — kept out of the core so the core stays minimal.
 - **You need a KMS.** This is a primitive, not a key-management service.
 
 ---
@@ -514,10 +516,10 @@ them. Treat it as a well-built primitive pending independent review. See
 
 ## Status & roadmap
 
-**Current release: `2.1.0` (first stable).** The information-theoretic core and the
-engineering around it are feature-complete; the API and the `.pqss` format are stable and
-will not change without a SemVer signal. The core and the opt-in VSS package share one
-version line (see
+**Current release: `2.2.0`.** The information-theoretic core and the engineering around it
+are feature-complete; the API and the `.pqss` format are stable and will not change without
+a SemVer signal. The core, the opt-in VSS package, and the opt-in Extensions package share
+one version line (see
 [`CHANGELOG.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/CHANGELOG.md));
 the on-disk `.pqss` core format remains **v1** (the VSS package adds **v2** records). The
 one item still open is an **independent audit** — stated plainly, not implied.
@@ -530,7 +532,9 @@ one item still open is an **independent audit** — stated plainly, not implied.
 | `ZeroizingBuffer` (pinned, zeroizing, best-effort page-lock) | ✅ Stable |
 | ML-DSA-65 dealer authentication with key pinning *(net10.0)* | ✅ Stable |
 | `WrappedSecret`, `Refresh`, `DealerCommitment`, per-share verify | ✅ Stable |
-| `pqss` CLI, five samples, full docs | ✅ Stable |
+| Verifiable Secret Sharing — Pedersen, opt-in `…Vss` *(net10.0 signing)* | ✅ Shipped *(unaudited)* |
+| Distributed proactive refresh — opt-in `…Extensions` | ✅ Shipped *(honest-but-curious)* |
+| `pqss` CLI, six samples, full docs | ✅ Stable |
 | Independent security audit | ⏳ Not yet — *honestly stated, not implied* |
 
 **What you can expect next** (intent, not a promise — full detail in
@@ -540,8 +544,10 @@ one item still open is an **independent audit** — stated plainly, not implied.
   CBOR codec, a written-up real-world dogfooding deployment, and a quiet preview
   period with no format/API churn.
 - **`2.x` (additive, non-breaking):** more ecosystem samples (EF Core master key,
-  cloud-KMS hybrid), more published cross-implementation test vectors, and an
-  optional `…Extensions` package for higher-level ceremony helpers.
+  cloud-KMS hybrid) and more published cross-implementation test vectors. The optional
+  [`…Extensions`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/PROACTIVE-REFRESH.md)
+  package for higher-level ceremony helpers has **shipped** (first helper: distributed
+  proactive refresh).
 - **Verifiable Secret Sharing (opt-in, shipped):** detect a
   *malicious dealer* — ships as the separate
   [`PostQuantum.SecretSharing.Vss`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md) package —
@@ -551,9 +557,15 @@ one item still open is an **independent audit** — stated plainly, not implied.
   pinned ([SPEC §v2](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/SPEC.md)),
   vectors are published, and a dedicated
   [audit guide](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-AUDIT-GUIDE.md)
-  ships with it; the one remaining step to stable is an independent audit. Distributed
-  proactive refresh is still planned. See
+  ships with it; the one remaining step to stable is an independent audit. See
   [`docs/KNOWN-GAPS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/KNOWN-GAPS.md) §1.
+- **Distributed proactive refresh (opt-in, shipped):** re-randomize shares across parties
+  — or a co-located set — *without ever reconstructing the secret*, defeating a mobile
+  adversary. Ships as the separate
+  [`PostQuantum.SecretSharing.Extensions`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/PROACTIVE-REFRESH.md)
+  package (`ProactiveRefresh`), dependency-free like the core. Honest-but-curious
+  construction (secrecy preserved; malicious-contributor corruption is *detected*, not a
+  leak). See [`docs/KNOWN-GAPS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/KNOWN-GAPS.md) §5.
 
 What this deliberately is **not**, now or planned: a KMS, a way to safely split
 low-entropy secrets directly (use `WrappedSecret`), or a defense against power/EM
@@ -568,6 +580,7 @@ side channels and process memory dumps.
 - [`docs/KNOWN-GAPS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/KNOWN-GAPS.md) — real limitations, including the unflattering ones.
 - [`docs/AUDIT.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/AUDIT.md) — reviewer's audit kit: scope, repro, ranked risk areas, and a checklist (we want this cheap to audit).
 - [`docs/VSS-DESIGN.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md) — design + tradeoffs of the opt-in Verifiable Secret Sharing (Pedersen) package, with [`docs/VSS-AUDIT-GUIDE.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-AUDIT-GUIDE.md) (reviewer kit) and [`docs/test-vectors-vss.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/test-vectors-vss.md).
+- [`docs/PROACTIVE-REFRESH.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/PROACTIVE-REFRESH.md) — design + threat model of the opt-in `…Extensions` distributed proactive refresh (re-randomize shares without reconstructing).
 - [`docs/OPERATIONS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/OPERATIONS.md) — trustee ceremony guide.
 - [`docs/CASE-STUDY-signing-key.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/CASE-STUDY-signing-key.md) — a verified, reproducible ceremony protecting a code-signing key (with byte-identical + signature proofs).
 - [`docs/test-vectors.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/test-vectors.md) — cross-implementation test vectors.

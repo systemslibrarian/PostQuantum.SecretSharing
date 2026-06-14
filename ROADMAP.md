@@ -4,7 +4,7 @@ This roadmap states intent, not promises. The guiding principle is the same one
 that governs the rest of the project: ship a small, correct, honestly-documented
 primitive, and only add scope that can be done to the same standard.
 
-## The core (current line — `2.1.0`)
+## The core (current line — `2.2.0`)
 
 The core and the opt-in VSS package now share one version line (see
 [CHANGELOG.md](CHANGELOG.md)); the on-disk core `.pqss` format stays **v1**. The
@@ -34,8 +34,9 @@ not blockers we are pretending to have met:
 
 - Additional ecosystem integration samples (EF Core master key, cloud-KMS hybrid).
 - More published test vectors as other implementations appear.
-- Optional `PostQuantum.SecretSharing.Extensions` for higher-level ceremony
-  helpers, kept out of the core so the core stays dependency-free.
+- **[shipped]** `PostQuantum.SecretSharing.Extensions` — opt-in higher-level ceremony
+  helpers, kept out of the core so the core stays dependency-free. First helper:
+  distributed proactive refresh (below).
 
 ## Larger scope (may bump the `.pqss` format to v2)
 
@@ -60,7 +61,11 @@ The hard problems the core deliberately does **not** solve (see KNOWN-GAPS.md):
         *Requires external reviewers.*
   - [ ] No format or public-API changes for a sustained RC period.
 - **Distributed proactive secret sharing.** Re-randomize shares across parties
-  *without* reconstructing the secret (v1's `Refresh` is quorum-mediated). Still planned.
+  *without* reconstructing the secret (the core's `Refresh` is quorum-mediated).
+  **Shipped** in the opt-in [`PostQuantum.SecretSharing.Extensions`](docs/PROACTIVE-REFRESH.md)
+  package (`ProactiveRefresh`) as the honest-but-curious construction. A **verifiable**
+  variant (preventing, not just detecting, a malicious contributor) would build on the VSS
+  prime-order machinery and is the natural next step.
 - Possible additional authenticators behind `IShareAuthenticator` (the
   abstraction is intentionally narrow to allow this without breaking the API).
 

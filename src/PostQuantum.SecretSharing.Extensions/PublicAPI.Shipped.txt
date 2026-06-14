@@ -1,0 +1,11 @@
+#nullable enable
+PostQuantum.SecretSharing.Extensions.ProactiveRefresh
+PostQuantum.SecretSharing.Extensions.RefreshSubShare
+PostQuantum.SecretSharing.Extensions.RefreshSubShare.ContributorIndex.get -> int
+PostQuantum.SecretSharing.Extensions.RefreshSubShare.Export() -> byte[]!
+PostQuantum.SecretSharing.Extensions.RefreshSubShare.RecipientIndex.get -> int
+PostQuantum.SecretSharing.Extensions.RefreshSubShare.Threshold.get -> int
+static PostQuantum.SecretSharing.Extensions.ProactiveRefresh.Apply(PostQuantum.SecretSharing.SecretShare! share, System.Collections.Generic.IReadOnlyList<PostQuantum.SecretSharing.Extensions.RefreshSubShare!>! subSharesForThisShare) -> PostQuantum.SecretSharing.SecretShare!
+static PostQuantum.SecretSharing.Extensions.ProactiveRefresh.CreateContribution(int contributorIndex, int threshold, int secretLength, System.Collections.Generic.IReadOnlyList<int>! recipientIndices) -> System.Collections.Generic.IReadOnlyList<PostQuantum.SecretSharing.Extensions.RefreshSubShare!>!
+static PostQuantum.SecretSharing.Extensions.ProactiveRefresh.RefreshLocally(System.Collections.Generic.IReadOnlyList<PostQuantum.SecretSharing.SecretShare!>! shares) -> PostQuantum.SecretSharing.SecretShare![]!
+static PostQuantum.SecretSharing.Extensions.RefreshSubShare.Import(System.ReadOnlySpan<byte> bytes) -> PostQuantum.SecretSharing.Extensions.RefreshSubShare!
