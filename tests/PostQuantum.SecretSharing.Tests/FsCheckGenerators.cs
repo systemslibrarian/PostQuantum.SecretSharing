@@ -1,4 +1,5 @@
 using FsCheck;
+using FsCheck.Fluent;
 
 namespace PostQuantum.SecretSharing.Tests;
 
@@ -16,7 +17,7 @@ public static class ValidShareArbitrary
             from n in Gen.Choose(k, 255)
             from index in Gen.Choose(1, n)
             from len in Gen.Choose(1, 64)
-            from authed in Gen.Elements(false, true)
+            from authed in Gen.Elements(new[] { false, true })
             select Build(k, n, index, len, authed);
         return Arb.From(gen, Shrink);
     }
@@ -58,7 +59,7 @@ public static class MutatedShareArbitrary
             from n in Gen.Choose(k, 16)
             from index in Gen.Choose(1, n)
             from len in Gen.Choose(1, 48)
-            from authed in Gen.Elements(false, true)
+            from authed in Gen.Elements(new[] { false, true })
             from kind in Gen.Choose(0, KindCount - 1)
             from pos in Gen.Choose(0, 8192)
             from val in Gen.Choose(0, 255)
@@ -145,7 +146,7 @@ public static class CborModelArbitrary
     {
         Gen<CborVal> valGen = Gen.OneOf(new[]
         {
-            from v in Gen.Choose(0, 70000) from ai in Gen.Elements(-1, -1, -1, -1, 24, 25, 26) select (CborVal)new VUInt((ulong)v, ai),
+            from v in Gen.Choose(0, 70000) from ai in Gen.Elements(new[] { -1, -1, -1, -1, 24, 25, 26 }) select (CborVal)new VUInt((ulong)v, ai),
             from n in Gen.Choose(0, 40) select (CborVal)new VBytes(n),
             from n in Gen.Choose(0, 6) select (CborVal)new VText(n),
         });
@@ -158,8 +159,8 @@ public static class CborModelArbitrary
         Gen<CborModel> gen =
             from entries in Gen.ArrayOf(entryGen)
             from countMode in Gen.Choose(0, 9)
-            from indef in Gen.Elements(false, false, false, false, false, false, false, false, false, true)
-            from trailing in Gen.Elements(Array.Empty<byte>(), new byte[] { 0x00 }, new byte[] { 0xFF, 0xFF })
+            from indef in Gen.Elements(new[] { false, false, false, false, false, false, false, false, false, true })
+            from trailing in Gen.Elements(new[] { Array.Empty<byte>(), new byte[] { 0x00 }, new byte[] { 0xFF, 0xFF } })
             select new CborModel(DeclaredCount(entries.Length, countMode), indef, entries, trailing);
 
         return Arb.From(gen, Shrink);
@@ -204,8 +205,8 @@ public static class CborUIntArbitrary
     internal static readonly Gen<ulong> UInt =
         Gen.Frequency(new[]
         {
-            Tuple.Create(1, Gen.Elements(Boundaries)),
-            Tuple.Create(3, RandomUInt()),
+            (1, Gen.Elements(Boundaries)),
+            (3, RandomUInt()),
         });
 
     public static Arbitrary<CborUInt> UInts() =>
