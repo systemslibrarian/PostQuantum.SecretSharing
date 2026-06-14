@@ -101,11 +101,12 @@ verify it from the `.csproj`:
 - Build authenticity, SBOM, and reproducible-build instructions:
   [`SUPPLY-CHAIN.md`](SUPPLY-CHAIN.md).
 
-> **v2 note.** The forthcoming opt-in `PostQuantum.SecretSharing.Vss` package (see
-> [`VSS-DESIGN.md`](VSS-DESIGN.md)) is the *only* component permitted a third-party
-> cryptographic dependency, for prime-order group arithmetic. The core stays
-> dependency-free. Review the VSS package's trusted base separately and against its
-> design spec.
+> **VSS package.** The opt-in `PostQuantum.SecretSharing.Vss` package is the *only*
+> component permitted a third-party cryptographic dependency (`BouncyCastle.Cryptography`,
+> for prime-order group arithmetic). The core stays dependency-free. It has its own
+> dedicated, self-contained auditor guide — **[`VSS-AUDIT-GUIDE.md`](VSS-AUDIT-GUIDE.md)** —
+> covering its review surface (~840 lines), trusted base, ranked risks, reproducible
+> evidence, and a checklist. Review it separately from the core.
 
 ---
 
@@ -115,8 +116,9 @@ Do not spend time on these — they are documented decisions, not bugs:
 
 - Constant-time CBOR parsing (parses *public* structure only — KNOWN-GAPS §6).
 - RNG injection (intentionally absent — KNOWN-GAPS §7).
-- Malicious-dealer / VSS (v1 scope decision; v2 design in
-  [`VSS-DESIGN.md`](VSS-DESIGN.md) — KNOWN-GAPS §1).
+- Malicious-dealer / VSS in the **core** (deliberately absent — KNOWN-GAPS §1).
+  Now shipped in the opt-in `PostQuantum.SecretSharing.Vss` package; review it
+  separately against its design spec ([`VSS-DESIGN.md`](VSS-DESIGN.md)).
 - Distributed proactive refresh (v2 — KNOWN-GAPS §5).
 - Memory-dump / power / EM side channels (out of scope — THREAT-MODEL).
 - Splitting low-entropy secrets directly (use `WrappedSecret` — THREAT-MODEL).

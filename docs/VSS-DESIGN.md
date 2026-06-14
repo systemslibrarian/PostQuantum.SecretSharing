@@ -1,12 +1,16 @@
 # Design: Verifiable Secret Sharing (v2)
 
-> **Status: implemented as a preview.** This document is both the design rationale
+> **Status: implemented; audit-ready.** This document is both the design rationale
 > and the contract the implementation meets. It is realised in the opt-in
-> `PostQuantum.SecretSharing.Vss` package (`2.0.1-preview.1`); the GF(2⁸) core is
-> **not** modified. Code: `src/PostQuantum.SecretSharing.Vss/`. Tests:
-> `tests/PostQuantum.SecretSharing.Vss.Tests/` (round-trip, quorum agreement, tamper /
-> malicious-dealer detection, fail-closed parsing, group-math and interpolation
-> checks, pinned `H` vector).
+> `PostQuantum.SecretSharing.Vss` package; the GF(2⁸) core is **not** modified. Code:
+> `src/PostQuantum.SecretSharing.Vss/`. Tests: `tests/PostQuantum.SecretSharing.Vss.Tests/`
+> (round-trip, quorum agreement, tamper / malicious-dealer detection, fail-closed parsing,
+> group-math and interpolation checks, pinned `H` vector, **dealer-signed broadcast**, and
+> a **pinned worked vector** — `VssSpecExampleTests`). The wire format is pinned in
+> [`SPEC.md`](SPEC.md) §v2, the v2 readers are coverage-fuzzed, and a dedicated reviewer
+> kit is in [`VSS-AUDIT-GUIDE.md`](VSS-AUDIT-GUIDE.md). The one remaining gap to stable is
+> an **independent audit** (see [`KNOWN-GAPS.md`](KNOWN-GAPS.md) §9) — the code and docs are
+> built to make that cheap.
 
 ## 1. Problem and goal
 
@@ -141,9 +145,11 @@ trailing bytes, fail-closed). Two record kinds:
   big-endian field elements, and a back-reference (`splitId`) tying it to its
   commitment set.
 
-Field numbering, byte widths, and a worked hex example will be pinned in
-[`SPEC.md`](SPEC.md) (a new "v2 / VSS" section) with `SpecExampleTests` enforcing it,
-exactly as v1 does.
+Field numbering, byte widths, and a worked hex example are pinned in
+[`SPEC.md`](SPEC.md) §v2 and enforced by `VssSpecExampleTests`, exactly as v1 does. The
+`vss-commitments` record additionally carries optional dealer-authentication fields
+(`authAlgorithm`, `dealerPublicKey`, `signature`) at keys 9–11, mirroring the v1 share
+format — see §3.3 and [`SPEC.md`](SPEC.md) §v2.7.
 
 ## 5. Public API (as shipped in the `…​.Vss` package)
 
@@ -153,6 +159,8 @@ namespace PostQuantum.SecretSharing.Vss;
 public static class PedersenVss
 {
     public static VssSplit Split(ReadOnlySpan<byte> secret, SharePolicy policy);
+    public static VssSplit Split(ReadOnlySpan<byte> secret, SharePolicy policy,
+                                 IShareAuthenticator? dealer);   // signs the broadcast
     public static ZeroizingBuffer Reconstruct(
         IReadOnlyList<VssShare> shares, VssCommitments commitments);
 }
@@ -164,6 +172,9 @@ public sealed class VssCommitments               // public broadcast; pin like t
     public int Threshold { get; }
     public int TotalShares { get; }
     public int SecretLength { get; }
+    public bool IsDealerSigned { get; }
+    public ReadOnlyMemory<byte> DealerPublicKey { get; }
+    public bool VerifyDealerSignature(ReadOnlySpan<byte> pinnedDealerPublicKey);
     public byte[] Export();
     public static VssCommitments Import(ReadOnlySpan<byte> bytes);
 }
@@ -183,11 +194,15 @@ Exceptions reuse the v1 hierarchy (`ShareFormatException`, `SharePolicyException
 `ShareConsistencyException`). `Reconstruct` re-verifies every share against the
 commitments and throws `ShareConsistencyException` rather than returning a wrong secret.
 
-> **Deferred to a later preview (documented, not shipped):** ML-DSA-65 signing of the
-> commitment broadcast (post-quantum dealer-authentication of the pin) and an optional
-> dealer parameter on `Split`. Until then, the commitments must be **pinned / broadcast
-> non-equivocably out-of-band**, exactly as the dealer public key is in v1 — the VSS
-> guarantee assumes every trustee sees the *same* commitments.
+**Broadcast authentication (shipped).** `Split` has an overload taking an optional
+`IShareAuthenticator dealer`; when supplied, the commitment broadcast is signed with
+ML-DSA-65 (FIPS 204) over its canonical keys-0–10 form, and `VssCommitments` exposes
+`IsDealerSigned`, `DealerPublicKey`, and `VerifyDealerSignature(pinnedKey)`. This makes the
+*pin itself* post-quantum dealer-authenticated: a trustee that has pinned the dealer key
+out-of-band can confirm the broadcast was produced by that dealer and not substituted. An
+**unsigned** broadcast is still supported and must then be **pinned / broadcast
+non-equivocably out-of-band**, exactly as the dealer public key is in v1 — the VSS
+guarantee assumes every trustee sees the *same* commitments.
 
 ## 6. Dependency & isolation
 
@@ -210,7 +225,11 @@ commitments and throws `ShareConsistencyException` rather than returning a wrong
    hides `a_0` perfectly); but it is stated, not hidden. The GF(2⁸) core remains the
    constant-time path.
 3. **Commitment size grows with secret length** — wrap large secrets (§3.2).
-4. **Preview-quality, unaudited new crypto** — ships only as a `2.x` preview.
+4. **Unaudited new crypto.** The construction and this implementation have not had an
+   independent audit. Everything is built to make one cheap (small novel surface, pinned
+   vectors, reproducible evidence — see [`VSS-AUDIT-GUIDE.md`](VSS-AUDIT-GUIDE.md)), but
+   until that review happens, treat it as a carefully-engineered primitive, not audited
+   software.
 
 ## 8. Test & evidence plan (to match the rest of the project)
 
@@ -220,17 +239,34 @@ commitments and throws `ShareConsistencyException` rather than returning a wrong
   tampered share scalar or commitment fails verify; (c) reconstruction from any `K`
   verified shares yields the original secret; (d) a *deliberately inconsistent* dealer
   (one off-curve share) is always detected.
-- **Negative/fail-closed:** malformed `.pqss` v2 → only library exceptions (extend the
-  fuzz harness to the v2 reader).
-- **Cross-impl vectors:** publish v2 vectors (incl. `H`) in `docs/test-vectors*`.
+- **Negative/fail-closed:** malformed `.pqss` v2 → only library exceptions. *Done:*
+  3000-iteration FsCheck mutation/truncation/trailing-byte tests (`VssFormatAndMathTests`)
+  **and** the coverage-guided fuzzer now feeds both v2 readers ([`../fuzz/`](../fuzz)).
+- **Cross-impl vectors:** *Done:* `H` plus a full worked broadcast + share set, derived
+  from a specified SHA-256 counter stream, in [`test-vectors-vss.md`](test-vectors-vss.md)
+  and pinned by `VssSpecExampleTests`.
+- **Broadcast signing:** *Done:* `VssDealerSigningTests` (verify, wrong-key, tamper,
+  round-trip) on net10.0.
 - **Sample:** a `MaliciousDealerDetected` sample showing a tampered ceremony being
   rejected before reconstruction.
 
-## 9. Open questions for review
+## 9. Resolved design decisions
 
-1. P-256 vs rist255 — P-256 is chosen for tooling/availability; ristretto would give
-   a cleaner prime-order group but weaker .NET support. Acceptable?
-2. Should VSS commitments be **required** to be ML-DSA-signed (post-quantum
-   dealer-auth of the broadcast), or left optional as sketched?
-3. 31-byte chunking vs a single large-secret encoding — chunking keeps elements `< q`
-   unambiguously; confirm the framing in SPEC.
+These were open during the first preview and are now **decided and frozen** for the
+stable wire format (changing any of them is a breaking, `version`-bumping change):
+
+1. **Group: P-256, not ristretto255.** P-256 has a prime order (cofactor 1, so no
+   small-subgroup concerns), broad review, and first-class support in the chosen
+   dependency. ristretto255 would give a cleaner prime-order abstraction but materially
+   weaker .NET/BouncyCastle support; the security properties we need (prime order,
+   nothing-up-my-sleeve `H`) hold on P-256. **Decision: P-256, `group = 1`.** A future
+   group would ship as a new `group` id, not a silent change.
+2. **Broadcast signing is _optional_, not required.** Forcing ML-DSA-65 would (a) make the
+   broadcast net10.0-only to *produce*, and (b) conflate the information-theoretic VSS
+   guarantee with a computational layer. Instead, signing is an opt-in overload; an
+   unsigned broadcast is valid and carries the documented out-of-band-pinning requirement,
+   exactly like the v1 dealer key. **Decision: optional (`authAlgorithm` 0 or 1).**
+3. **31-byte chunking, confirmed.** Each 31-byte chunk is unambiguously `< q` (injective,
+   no modular wraparound), and the per-split `secretLength` restores the final short chunk
+   and leading zeros exactly. The framing is pinned in [`SPEC.md`](SPEC.md) §v2.3 and
+   tested by `VssFormatAndMathTests.Chunking_round_trips`. **Decision: 31-byte chunks.**

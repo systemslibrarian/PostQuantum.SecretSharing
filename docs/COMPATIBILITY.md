@@ -24,7 +24,7 @@ Two things are versioned in this project, and they are **not** the same thing:
 
 ## The .NET API (Semantic Versioning)
 
-Once a stable (non-prerelease) `2.x` release ships, the public API follows
+As of the stable `2.1.0` release, the public API of both packages follows
 [SemVer](https://semver.org/):
 
 - **MAJOR** — a breaking change to the public API or the `.pqss` format.
@@ -32,9 +32,10 @@ Once a stable (non-prerelease) `2.x` release ships, the public API follows
   parameters, new helpers).
 - **PATCH** — backward-compatible bug fixes.
 
-Until then, the `2.0.1-preview.x` pre-releases may still adjust the public API in
-response to review feedback; the `.pqss` **format**, however, is already treated
-as v1-stable (see above).
+The public surface of each package is locked by `PublicAPI.Shipped.txt`, so any change is
+a reviewable diff and an accidental break fails the build. The `.pqss` core **format**
+stays v1; the opt-in VSS package's **v2** records are likewise frozen under the same
+policy.
 
 ### What counts as "public API"
 

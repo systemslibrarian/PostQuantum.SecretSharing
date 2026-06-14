@@ -22,7 +22,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to release (e.g. vss-v2.0.0-preview.1). Required for manual runs."
+        description: "Tag to release (e.g. vss-v2.1.0). Required for manual runs."
         required: true
         type: string
 

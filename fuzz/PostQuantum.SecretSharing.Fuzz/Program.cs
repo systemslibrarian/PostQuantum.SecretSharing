@@ -1,16 +1,21 @@
 using PostQuantum.SecretSharing;
+using PostQuantum.SecretSharing.Vss;
 using SharpFuzz;
 
-// Coverage-guided fuzz target for the strict .pqss parser — the library's primary
+// Coverage-guided fuzz target for the strict .pqss parsers — the library's primary
 // untrusted-input attack surface. The property under test is fail-closed-ness:
 //
-//   For ANY byte sequence, SecretShare.Import must either succeed or throw a
+//   For ANY byte sequence, the Import entry points must either succeed or throw a
 //   SecretSharingException (the declared, intentional rejection hierarchy).
 //   ANY other exception — IndexOutOfRange, Overflow, OutOfMemory, etc. — is a bug,
 //   and letting it escape the lambda makes libFuzzer record a crash + repro.
 //
+// Three readers share one harness: the v1 share reader (SecretShare) and the opt-in
+// v2 / VSS readers (VssShare, VssCommitments). The same input is fed to all three;
+// each must fail closed.
+//
 // Usage:
-//   --seed <dir>   write a small valid-share seed corpus, then exit (no fuzzing).
+//   --seed <dir>   write a small valid-record seed corpus, then exit (no fuzzing).
 //   (no args)      run under libFuzzer (via libfuzzer-dotnet).
 
 if (args.Length >= 2 && args[0] == "--seed")
@@ -21,14 +26,11 @@ if (args.Length >= 2 && args[0] == "--seed")
 
 Fuzzer.LibFuzzer.Run(static (ReadOnlySpan<byte> data) =>
 {
-    try
-    {
-        _ = SecretShare.Import(data);
-    }
-    catch (SecretSharingException)
-    {
-        // Expected: every malformed / out-of-policy input is rejected this way.
-    }
+    try { _ = SecretShare.Import(data); } catch (SecretSharingException) { }
+    try { _ = VssShare.Import(data); } catch (SecretSharingException) { }
+    try { _ = VssCommitments.Import(data); } catch (SecretSharingException) { }
+    // Expected: every malformed / out-of-policy input is rejected via the declared
+    // SecretSharingException hierarchy. Any other escaping exception is a crash.
 });
 
 static void WriteSeedCorpus(string dir)
@@ -57,6 +59,12 @@ static void WriteSeedCorpus(string dir)
         // A couple of shares per split is plenty of seed diversity.
         for (int s = 0; s < Math.Min(2, shares.Length); s++)
             File.WriteAllBytes(Path.Combine(dir, $"seed-{i++:000}.pqss"), shares[s].Export());
+
+        // Matching v2 / VSS seeds (one commitment broadcast + one share per shape) so the
+        // fuzzer has structurally-valid v2 records to mutate, not just v1 ones.
+        VssSplit vss = PedersenVss.Split(secret, new SharePolicy(k, n));
+        File.WriteAllBytes(Path.Combine(dir, $"seed-{i++:000}.vss-c"), vss.Commitments.Export());
+        File.WriteAllBytes(Path.Combine(dir, $"seed-{i++:000}.vss-s"), vss.Shares[0].Export());
     }
 
     Console.WriteLine($"Wrote {i} seed inputs to {dir}");

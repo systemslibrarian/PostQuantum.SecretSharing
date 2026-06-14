@@ -32,18 +32,41 @@ public static class PedersenVss
     /// commitment broadcast to distribute alongside them.
     /// </summary>
     /// <exception cref="SharePolicyException">If the secret length is out of range.</exception>
-    public static VssSplit Split(ReadOnlySpan<byte> secret, SharePolicy policy)
+    public static VssSplit Split(ReadOnlySpan<byte> secret, SharePolicy policy) =>
+        Split(secret, policy, dealer: null);
+
+    /// <summary>
+    /// Verifiably splits <paramref name="secret"/> and, when <paramref name="dealer"/> is
+    /// supplied, signs the commitment broadcast with the dealer's key (ML-DSA-65) so the
+    /// pin itself is post-quantum dealer-authenticated. The signature binds the entire
+    /// broadcast (group, <c>K</c>, <c>N</c>, <c>splitId</c>, secret length, and every
+    /// commitment point), letting any trustee confirm the broadcast came from the pinned
+    /// dealer and was not substituted. Verify it with
+    /// <see cref="VssCommitments.VerifyDealerSignature(ReadOnlySpan{byte})"/>.
+    /// </summary>
+    /// <param name="secret">The secret bytes to split (1..65536 bytes).</param>
+    /// <param name="policy">The threshold policy (<c>K</c>-of-<c>N</c>).</param>
+    /// <param name="dealer">
+    /// The dealer signer, or <see langword="null"/> for an unsigned broadcast (which must
+    /// then be pinned out-of-band, exactly like the dealer key in v1).
+    /// </param>
+    /// <exception cref="SharePolicyException">If the secret length is out of range.</exception>
+    /// <exception cref="ShareAuthenticationException">If <paramref name="dealer"/> is not an ML-DSA-65 signer.</exception>
+    public static VssSplit Split(ReadOnlySpan<byte> secret, SharePolicy policy, IShareAuthenticator? dealer)
     {
         ArgumentNullException.ThrowIfNull(policy);
         if (secret.Length < 1 || secret.Length > Vss2Format.MaxSecretLength)
             throw new SharePolicyException($"Secret length must be 1..{Vss2Format.MaxSecretLength} bytes.");
+        if (dealer is not null && dealer.Kind != ShareAuthenticationKind.MlDsa65)
+            throw new ShareAuthenticationException(
+                $"VSS dealer authentication supports only ML-DSA-65; got {dealer.Kind}.");
 
         int k = policy.Threshold;
         int n = policy.TotalShares;
 
         BigInteger[] elements = SecretChunking.ToElements(secret);
         int m = elements.Length;
-        byte[] splitId = RandomNumberGenerator.GetBytes(Vss2Format.SplitIdLength);
+        byte[] splitId = Secp256r1Group.RandomBytes(Vss2Format.SplitIdLength);
 
         // Per-chunk: a secret-carrying polynomial p, a blinding polynomial p', and the
         // commitments C_j = a_j·G + b_j·H to each coefficient pair.
@@ -70,6 +93,18 @@ public static class PedersenVss
         }
 
         var commitmentsData = new CommitmentsData(k, n, splitId, secret.Length, commitments);
+        if (dealer is not null)
+        {
+            byte[] dealerKey = dealer.PublicKey.ToArray();
+            byte[] payload = Vss2Format.EncodeCommitmentsSigningPayload(commitmentsData, dealerKey);
+            byte[] signature = dealer.Sign(payload);
+            commitmentsData = commitmentsData with
+            {
+                AuthKind = ShareAuthenticationKind.MlDsa65,
+                DealerPublicKey = dealerKey,
+                Signature = signature,
+            };
+        }
         var broadcast = new VssCommitments(commitmentsData, Vss2Format.EncodeCommitments(commitmentsData));
 
         var shares = new VssShare[n];

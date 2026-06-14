@@ -5,9 +5,11 @@
 Detect a *malicious dealer* who hands inconsistent shares to different trustees, so
 every quorum is guaranteed to reconstruct the same secret.
 
-> **Preview, unaudited new cryptography.** Ships as a `2.x` prerelease
-> (`2.0.1-preview.x`). See the honest
-> tradeoff below and the
+> **Unaudited new cryptography.** It has not had an independent audit — but it is built
+> to make one cheap (small novel surface, pinned wire format and vectors, reproducible
+> evidence; see the
+> [audit guide](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-AUDIT-GUIDE.md)).
+> See the honest tradeoff below and the
 > [design doc](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md).
 
 ## Quick example
@@ -33,6 +35,21 @@ using ZeroizingBuffer recovered = PedersenVss.Reconstruct(
     new[] { split.Shares[0], split.Shares[2], split.Shares[4] }, commitments);
 ```
 
+### Optionally: post-quantum dealer-authentication of the broadcast (net10.0)
+
+```csharp
+// The dealer signs the commitment broadcast with ML-DSA-65, so trustees can confirm the
+// pin they received came from the pinned dealer and was not substituted.
+using var dealer = MlDsa65ShareAuthenticator.Generate();
+byte[] dealerPin = dealer.PublicKey.ToArray();   // distribute/pin out-of-band, once
+
+VssSplit signed = PedersenVss.Split(secret, new SharePolicy(3, 5), dealer);
+
+// Each trustee checks the broadcast against the pinned dealer key…
+bool authentic = signed.Commitments.VerifyDealerSignature(dealerPin);
+// …in addition to verifying their own share against the (now-authenticated) commitments.
+```
+
 **▶ Runnable demo:**
 [`samples/MaliciousDealerDetected`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/tree/main/samples/MaliciousDealerDetected)
 — an honest split where every trustee verifies, then a dealer who slips one trustee an
@@ -55,13 +72,17 @@ specific tradeoff:
 ## Documentation
 
 - [VSS design & honest tradeoff](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md)
+- [VSS audit guide (reviewer kit)](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-AUDIT-GUIDE.md)
+- [Wire format — SPEC §v2](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/SPEC.md)
 - [VSS test vectors](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/test-vectors-vss.md)
-- [Audit kit](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/AUDIT.md)
 - [Repository](https://github.com/systemslibrarian/PostQuantum.SecretSharing)
 
 ## Status
 
 Pedersen VSS over NIST P-256, with `.pqss` v2 records and a pinned nothing-up-my-sleeve
-second generator. Preview-quality: the public API and format may still change, and
-ML-DSA-signed commitments are a later preview (for now, pin the commitments out-of-band
-like the dealer key).
+second generator. The commitment broadcast can be **ML-DSA-65–signed** by the dealer
+(optional, net10.0); an unsigned broadcast must be pinned out-of-band like the dealer key.
+The wire format is pinned in [SPEC §v2](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/SPEC.md)
+and enforced by a worked-vector test, the v2 readers are coverage-fuzzed, and a dedicated
+[audit guide](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-AUDIT-GUIDE.md)
+ships with it. The one remaining step to a stable release is an **independent audit**.

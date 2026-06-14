@@ -30,6 +30,44 @@ public sealed class VssCommitments
     /// <summary>The secret length in bytes this split commits to.</summary>
     public int SecretLength => Data.SecretLength;
 
+    /// <summary>
+    /// <see langword="true"/> if the broadcast carries a dealer signature (ML-DSA-65) over
+    /// its contents. Verify it with <see cref="VerifyDealerSignature(ReadOnlySpan{byte})"/>.
+    /// An unsigned broadcast must be pinned out-of-band instead.
+    /// </summary>
+    public bool IsDealerSigned => Data.AuthKind == ShareAuthenticationKind.MlDsa65;
+
+    /// <summary>
+    /// The ML-DSA-65 dealer public key embedded in (and bound by) a signed broadcast, or an
+    /// empty span if the broadcast is unsigned.
+    /// </summary>
+    public ReadOnlyMemory<byte> DealerPublicKey => Data.DealerPublicKey ?? ReadOnlyMemory<byte>.Empty;
+
+    /// <summary>
+    /// Verifies the dealer signature over this broadcast against the trustee's
+    /// <paramref name="pinnedDealerPublicKey"/>. Returns <see langword="true"/> iff the
+    /// broadcast is signed, its embedded dealer key equals the pinned key, and the signature
+    /// validates. This authenticates the pin itself: a trustee who has pinned the dealer key
+    /// out-of-band can confirm the broadcast it received was produced by that dealer and not
+    /// substituted by a man-in-the-middle. It does <b>not</b> replace per-share
+    /// <see cref="VssShare.Verify(VssCommitments)"/> — that proves share/polynomial consistency.
+    /// </summary>
+    /// <exception cref="PlatformNotSupportedException">
+    /// If ML-DSA-65 verification is unavailable on this target/platform (requires net10.0 with
+    /// a supporting backend; see the README platform matrix).
+    /// </exception>
+    public bool VerifyDealerSignature(ReadOnlySpan<byte> pinnedDealerPublicKey)
+    {
+        if (!IsDealerSigned)
+            return false;
+        if (!pinnedDealerPublicKey.SequenceEqual(Data.DealerPublicKey))
+            return false;
+
+        byte[] payload = Vss2Format.EncodeCommitmentsSigningPayload(Data, Data.DealerPublicKey!);
+        return ShareSignatureVerifier.Verify(
+            Data.AuthKind, Data.DealerPublicKey!, payload, Data.Signature!);
+    }
+
     /// <summary>Canonical <c>.pqss</c> v2 bytes of the commitment broadcast, for distribution.</summary>
     public byte[] Export() => (byte[])_bytes.Clone();
 
