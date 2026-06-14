@@ -7,6 +7,32 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.2.0] — 2026-06-14
+
+### Added — new opt-in package: `PostQuantum.SecretSharing.Extensions`
+
+- **Distributed proactive secret sharing** (`ProactiveRefresh`). Re-randomize a
+  `K`-of-`N` sharing so shares from an earlier epoch become useless — **without ever
+  reconstructing the secret**, defeating a *mobile* adversary that compromises different
+  trustees over time. Unlike the core's quorum-mediated `Refresh` (which briefly
+  reconstructs and re-splits), the secret is never formed in memory.
+  - `ProactiveRefresh.CreateContribution` / `Apply` — the multi-party protocol (each party
+    contributes a zero-constant-term sharing; each applies the sub-shares addressed to it).
+  - `ProactiveRefresh.RefreshLocally` — co-located convenience that runs the whole protocol
+    in-process, still without reconstructing.
+  - `RefreshSubShare` — the addressed, strict-CBOR update record for point-to-point delivery.
+  - Honest-but-curious construction: secrecy preserved; a malicious contributor can cause
+    *detected* corruption (via the preserved check value), never a leak. Full design and
+    threat model in [`PROACTIVE-REFRESH.md`](docs/PROACTIVE-REFRESH.md).
+- The package is **dependency-free**, like the core, and reuses the core's constant-time
+  GF(2⁸) math and strict-CBOR codec via `InternalsVisibleTo`.
+
+### Changed
+
+- **Lockstep version bump to `2.2.0`** across all three packages (core, VSS, Extensions) —
+  a MINOR release for the new proactive-refresh feature. No breaking public-API change and
+  no `.pqss` v1/v2 format change; the core and VSS packages are functionally unchanged.
+
 ## [2.1.0] — 2026-06-14
 
 **First stable release.** Both packages leave prerelease and move (in lockstep) to

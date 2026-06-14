@@ -58,17 +58,25 @@ called. This is a backstop, not a guarantee: the window between last use and
 garbage collection is unbounded, and process termination may skip finalizers
 entirely. **Always dispose** (`using`).
 
-## 5. Refresh is quorum-mediated, not distributed-proactive
+## 5. The *core* `Refresh` is quorum-mediated (proactive refresh is an opt-in package)
 
-`ShamirSecretSharing.Refresh` rotates custody by re-splitting the secret into a
-fresh set of shares with a new `splitId` (old shares no longer interoperate with
-new ones). It is **quorum-mediated**: it briefly reconstructs the secret in a
-`ZeroizingBuffer` and re-splits. It is *not* proactive secret sharing in the
-academic sense — there is no distributed protocol that re-randomizes shares across
-parties without ever reconstructing. Also note that, because `Refresh` keeps the
-*same* secret, old shares still reconstruct it among themselves; if you are
-rotating because a share may be compromised, rotate the underlying secret instead
-(see OPERATIONS.md, "revocation always rotates").
+`ShamirSecretSharing.Refresh` in the **core** rotates custody by re-splitting the
+secret into a fresh set of shares with a new `splitId` (old shares no longer
+interoperate with new ones). It is **quorum-mediated**: it briefly reconstructs the
+secret in a `ZeroizingBuffer` and re-splits. The core deliberately ships nothing
+more (it stays dependency-free and minimal).
+
+True **distributed proactive secret sharing** — re-randomize shares across parties
+(or a co-located set) **without ever reconstructing** — is available in the opt-in
+[`PostQuantum.SecretSharing.Extensions`](PROACTIVE-REFRESH.md) package
+(`ProactiveRefresh`). Note its honest tradeoff: it is the *honest-but-curious*
+construction (secrecy preserved; a malicious contributor can cause *detected*
+corruption, never a leak — see [`PROACTIVE-REFRESH.md`](PROACTIVE-REFRESH.md) §4).
+
+Also note that, because either refresh keeps the *same* secret, old shares still
+reconstruct it among themselves; if you are rotating because a share may be
+compromised, rotate the underlying secret instead (see OPERATIONS.md, "revocation
+always rotates").
 
 ## 6. CBOR parsing is not constant-time
 
