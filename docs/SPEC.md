@@ -1,8 +1,12 @@
-# `.pqss` Share Format — Specification v1
+# `.pqss` Share Format — Specification
 
 This document specifies the byte-level format of a PostQuantum.SecretSharing
 share. The format is a **strict, canonical CBOR** map. There are no extension
-points in v1: any deviation from this document is rejected.
+points: any deviation from this document is rejected.
+
+- **Part I — v1** (the dependency-free GF(2⁸) core share format) is below.
+- **Part II — v2 / VSS** (the opt-in Pedersen VSS records) is at the end of this
+  file. v2 is purely additive; the v1 format is unchanged.
 
 ---
 
@@ -177,3 +181,183 @@ Annotated:
 
 The complete encoding is 78 bytes. (These exact bytes are pinned by a unit test,
 `SpecExampleTests`, so this section cannot drift from the implementation.)
+
+---
+---
+
+# `.pqss` v2 / VSS — Specification
+
+This part specifies the two record kinds added by the **opt-in**
+`PostQuantum.SecretSharing.Vss` package (Pedersen Verifiable Secret Sharing over
+NIST P-256). It is **additive**: the v1 share format above is unchanged, the
+GF(2⁸) core is untouched, and a v1 reader rejects a v2 record (different format
+tag and version) and vice-versa. Design rationale is in
+[`VSS-DESIGN.md`](VSS-DESIGN.md); cross-implementation vectors are in
+[`test-vectors-vss.md`](test-vectors-vss.md).
+
+The same strict canonical-CBOR discipline as v1 applies in full (§1 above):
+definite lengths, shortest-form integer heads, ascending unique integer keys,
+exact type per key, no trailing bytes, fail-closed with `ShareFormatException`.
+Both records reuse the **same audited** `CanonicalCborWriter` / `StrictCborReader`
+as v1 — there is no second parser.
+
+## v2.1 Group and constants
+
+| Item | Value |
+|------|-------|
+| Group | NIST P-256 (secp256r1), `group = 1`. Cofactor 1, prime order `q`. |
+| `G` | the standard P-256 base point. |
+| `H` | second generator, `log_G(H)` unknown to all parties (see v2.2). |
+| Point encoding | **compressed**, 33 bytes: `0x02`/`0x03` ‖ 32-byte big-endian `x`. The identity is not a legal encoding. |
+| Scalar encoding | fixed **32-byte big-endian**, canonical, MUST be `< q`. |
+| ML-DSA-65 public key | 1952 bytes (as v1). |
+| ML-DSA-65 signature | 3309 bytes (as v1). |
+
+## v2.2 Second generator `H` (nothing-up-my-sleeve)
+
+`H` is derived by **hash-and-increment** from a fixed ASCII domain string, so the
+value is public, reproducible, and known-to-have-no-known-discrete-log. For
+`counter = 0, 1, 2, …` as a big-endian `uint32`:
+
+```
+x = SHA-256(  "PostQuantum.SecretSharing/vss/H/secp256r1/v1"  ‖  counter )
+skip if x ≥ p (the field prime);
+otherwise take the point (x, even-y) if it lies on the curve; else continue.
+```
+
+| Item | Value |
+|------|-------|
+| Domain string (ASCII, 45 bytes) | `PostQuantum.SecretSharing/vss/H/secp256r1/v1` |
+| `H` (compressed, hex) | `02C210CA1DD338B122F04B3FF2C7A7F8360D7C43BCFD9647BD022A845B3C33278C` |
+
+Any implementation that derives a different `H` is not interoperable. The vector
+is pinned by `VssFormatAndMathTests.Second_generator_H_is_valid_independent_and_deterministic`.
+
+## v2.3 Secret encoding (chunking)
+
+The secret is encoded as a sequence of scalar-field elements, **31 bytes per
+element** (248 bits `< q`, so each chunk is an unambiguous element `< q` and the
+mapping is injective). `m = chunkCount = ceil(secretLength / 31)`. Chunk `m−1`
+carries the trailing `secretLength − 31·(m−1)` bytes. Big-endian within a chunk;
+leading zero bytes are preserved because the original `secretLength` is recorded
+and used to right-align each chunk on reconstruction.
+
+## v2.4 Record: `vss-commitments` (the public broadcast)
+
+The dealer's commitment broadcast. **Public** — it reveals nothing about the
+secret (perfectly hiding). Map of **10 entries** when unsigned (`authAlgorithm = 0`,
+header `0xAA`) or **12 entries** when dealer-signed (`authAlgorithm = 1`, header
+`0xAC`).
+
+| Key | Name | CBOR type | Constraints |
+|----:|------|-----------|-------------|
+| 0 | `format` | text string | exactly `"PQSS-VSS-C"` |
+| 1 | `version` | uint | exactly `2` |
+| 2 | `group` | uint | exactly `1` (secp256r1) |
+| 3 | `threshold` (k) | uint | `2..255` |
+| 4 | `total` (n) | uint | `k..255` |
+| 5 | `splitId` | byte string | exactly 16 bytes |
+| 6 | `secretLength` | uint | `1..65536` |
+| 7 | `chunkCount` (m) | uint | MUST equal `ceil(secretLength/31)` |
+| 8 | `commitments` | byte string | exactly `m·k·33` bytes: `m` chunks × `k` compressed points `C_{c,0..k-1}`, chunk-major then coefficient order |
+| 9 | `authAlgorithm` | uint | `0` = none, `1` = ML-DSA-65; others rejected |
+| 10 | `dealerPublicKey` | byte string | **absent iff key 9 = 0**; if 1: exactly 1952 bytes |
+| 11 | `signature` | byte string | **absent iff key 9 = 0**; if 1: exactly 3309 bytes |
+
+Keys 0–9 are always present. Keys 10 and 11 are present **if and only if**
+`authAlgorithm = 1`; a contradiction between key 9 and the presence of keys 10/11
+is a `ShareFormatException`. Every point in key 8 is decoded and validated to be a
+non-identity on-curve point; any failure is a `ShareFormatException`.
+
+## v2.5 Record: `vss-share` (one per trustee)
+
+A trustee's verifiable share. Map of **10 entries** (header `0xAA`). Individual
+shares are not separately signed: their authenticity flows from the **signed
+broadcast** (a share is only accepted if it verifies against the commitments, and
+the commitments can be dealer-signed — see v2.7).
+
+| Key | Name | CBOR type | Constraints |
+|----:|------|-----------|-------------|
+| 0 | `format` | text string | exactly `"PQSS-VSS-S"` |
+| 1 | `version` | uint | exactly `2` |
+| 2 | `group` | uint | exactly `1` |
+| 3 | `threshold` (k) | uint | `2..255` |
+| 4 | `total` (n) | uint | `k..255` |
+| 5 | `shareIndex` (i) | uint | `1..n` |
+| 6 | `splitId` | byte string | exactly 16 bytes (ties the share to its broadcast) |
+| 7 | `secretLength` | uint | `1..65536` |
+| 8 | `chunkCount` (m) | uint | MUST equal `ceil(secretLength/31)` |
+| 9 | `scalars` | byte string | exactly `m·2·32` bytes: `m` pairs `(s_c, t_c)`, each a canonical 32-byte scalar `< q` |
+
+## v2.6 Verification equation
+
+A share `i` with scalar pair `(s_c, t_c)` for chunk `c` is **consistent** with the
+broadcast's commitments `C_{c,0..k-1}` iff, in the group, for every chunk `c`:
+
+```
+s_c · G  +  t_c · H   ==   Σ_{j=0}^{k-1} (i^j mod q) · C_{c,j}
+```
+
+A trustee accepts the share iff this holds for **all** `m` chunks. A single
+failing equation ⇒ inconsistent dealer or tampered share ⇒ reject the ceremony
+(`ShareConsistencyException`). Reconstruction re-checks this for every supplied
+share before interpolating (defense in depth), then Lagrange-interpolates each
+chunk's `s` values at `x = 0` over GF(q) and concatenates, trimming to
+`secretLength`.
+
+## v2.7 Signing rule (broadcast authentication)
+
+When `authAlgorithm = 1`, key 11 is an **ML-DSA-65 (FIPS 204)** signature in
+**pure mode with an empty context**, over the canonical encoding of the
+`vss-commitments` map containing **keys 0–10 only** (signature excluded, dealer
+public key included so the signature binds the claimed key).
+
+That signed payload is a *different* CBOR item than the exported record: a map of
+**11 entries** (header `0xAB`), whereas the signed export is **12 entries**
+(header `0xAC`). The verifier re-serializes keys 0–10 canonically from the
+**parsed** field values — never from offsets into the received buffer — and
+verifies against that, exactly as v1 does for shares. This authenticates the
+*pin itself*: a trustee that has pinned the dealer key out-of-band can confirm the
+broadcast came from that dealer and was not substituted. It is **independent of**,
+and additional to, the per-share consistency check of v2.6.
+
+## v2.8 Reader order of operations (fail-closed)
+
+Identical discipline to v1 §5: strict canonical parse → range-check every field →
+structural length checks (`commitments`/`scalars` blob length against `m`, `k`;
+key-9-dependent presence/size of keys 10–11; every point/scalar canonical and
+in-range) → only then group-arithmetic verification, signature verification, and
+reconstruction. No step that depends on a share scalar runs before the record is
+fully validated. Error messages identify what failed, never echoing scalar bytes.
+
+## v2.9 Worked example (pinned)
+
+Fixed inputs: `k = 2`, `n = 3`, secret =
+`000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F` (32 bytes ⇒
+`m = 2` chunks), unsigned broadcast, randomness from the fully-specified
+`DeterministicRng` SHA-256 counter stream documented in
+[`test-vectors-vss.md`](test-vectors-vss.md).
+
+`vss-commitments` (170 bytes, header `0xAA`):
+
+```
+AA006A505153532D5653532D43010202010302040305500A932FAE9FD5630126CF712C89B1DA55
+0618200702085884021CC34AE98AFE0A80ECB563E7471F7884D07A4117E9AD30501B41F3AFC13B9
+D73030663DF9DBE99735ED2841FFAEA3D6F710790043CBA7E14A7B62B62B7C1205048F02BDC3FC5
+F2370A240A63AA19377092DEF7E49CCFE566D4D063D43D6FCD308CC7B02FE5394E23860940A3E4E
+53D8CA1EEEB93F9DFA5685CC0AD6573888399EF815950900
+```
+
+`vss-share` (index 1, header `0xAA`):
+
+```
+AA006A505153532D5653532D530102020103020403050106500A932FAE9FD5630126CF712C89B1DA
+550718200802095880A2DE39EBDACA0B23F92A8C90D2CBC7303ABBD3E4E2C0222FF03F8753368403
+991C0FD9915CC8BA0AA71F523AF84DF72AC3826440BAD40A70858AC3BB1950A7BCB93D6E1039DB7C0
+2E11A581B72BF9DFF3CC31EFDDBA1E5D5E2401A93340A3326CE99E95C5B4B13BE68D1B33466360BB0
+8A9CADB7B10F7D5B49C0C7EBE13D3F66
+```
+
+All three shares and the full broadcast are pinned by `VssSpecExampleTests`, which
+re-derives them from the secret and the deterministic RNG and also confirms they
+parse, verify, and reconstruct — so this section cannot drift from the code.

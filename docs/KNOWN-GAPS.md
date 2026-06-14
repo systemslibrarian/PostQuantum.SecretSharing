@@ -12,19 +12,22 @@ different quorums recover different secrets, or some recover nothing). Defending
 against that requires Verifiable Secret Sharing, which needs a prime-order group
 rather than GF(2⁸) — so it is **not** part of the core and never will be.
 
-It is available as an **opt-in preview package**,
-[`PostQuantum.SecretSharing.Vss`](VSS-DESIGN.md) (`2.0.1-preview.1`), implementing
-**Pedersen VSS** over NIST P-256. Two things to understand before relying on it:
+It is available as an **opt-in package**,
+[`PostQuantum.SecretSharing.Vss`](VSS-DESIGN.md), implementing **Pedersen VSS** over NIST
+P-256. Two things to understand before relying on it:
 
 - **Secrecy stays information-theoretic / post-quantum.** Pedersen commitments are
   perfectly hiding; the transcript reveals nothing about the secret. The core
   guarantee is unchanged.
 - **Dealer-fraud *detection* is computational.** Commitment binding rests on
   discrete-log hardness, so a *quantum dealer* could in principle equivocate — it is
-  the detection, not the secrecy, that is classical. The package is also **preview,
-  unaudited new crypto**, and (this first preview) does not yet ML-DSA-sign the
-  commitment broadcast, so the commitments must be **pinned out-of-band** like the
-  dealer key. See [`VSS-DESIGN.md`](VSS-DESIGN.md) §2 and §7.
+  the detection, not the secrecy, that is classical. The commitment broadcast **can be
+  ML-DSA-65–signed** by the dealer (`PedersenVss.Split(secret, policy, dealer)` +
+  `VssCommitments.VerifyDealerSignature`), post-quantum-authenticating the pin; an
+  **unsigned** broadcast must instead be **pinned out-of-band** like the dealer key. The
+  package is also **unaudited new crypto** — see §9 — though built to be cheap to audit
+  ([`VSS-AUDIT-GUIDE.md`](VSS-AUDIT-GUIDE.md)). See [`VSS-DESIGN.md`](VSS-DESIGN.md) §2,
+  §3.3, and §7.
 
 ## 2. Check-value oracle for low-entropy secrets
 

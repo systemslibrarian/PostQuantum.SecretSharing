@@ -21,7 +21,7 @@ backup is a single point of failure or a single point of compromise.
 ```
 
 ```bash
-dotnet add package PostQuantum.SecretSharing --version 2.0.1-preview.1
+dotnet add package PostQuantum.SecretSharing --version 2.1.0
 ```
 
 ```csharp
@@ -356,12 +356,15 @@ pin you obtained out-of-band proves the shares came from *your* dealer.
   which splits a random key and wraps your real secret for you.
 - **You have a single custodian.** Sharing among one person is pointless ceremony;
   just encrypt the secret.
-- **You need verifiable secret sharing (VSS).** A *malicious dealer* can hand
-  inconsistent shares to different trustees. v1 authenticates shares *against the
-  dealer* and offers `DealerCommitment` (a one-time published commitment to the
-  intended secret), but it cannot *prove* shares are mutually consistent before
-  reconstruction. Full Feldman/Pedersen VSS needs a prime/EC group rather than
-  GF(2⁸) and is explicitly a **v2** concern.
+- **You need verifiable secret sharing (VSS) in the dependency-free core.** A
+  *malicious dealer* can hand inconsistent shares to different trustees. The core
+  authenticates shares *against the dealer* and offers `DealerCommitment` (a one-time
+  published commitment to the intended secret), but it cannot *prove* shares are mutually
+  consistent before reconstruction. Full VSS needs a prime/EC group rather than GF(2⁸), so
+  it ships **separately** in the opt-in
+  [`PostQuantum.SecretSharing.Vss`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md)
+  package (Pedersen VSS over P-256, with optional ML-DSA-65 broadcast signing) — kept out
+  of the core so the core stays dependency-free.
 - **You need *distributed* proactive secret sharing.** `Refresh` rotates shares
   (re-split, new `splitId`) but is quorum-mediated — it briefly reconstructs the
   secret. A protocol that re-randomizes shares across parties *without* any
@@ -386,13 +389,17 @@ of the alternatives — each tool solves a different problem.
 | Pinned + zeroized + page-locked secret memory | ✅ | ❌ | ❌ | — | rarely |
 | Built-in low-entropy wrap helper | ✅ | n/a | ❌ | n/a | ❌ |
 | Ceremony tooling + operations guide | ✅ CLI + docs | ❌ | ❌ | ✅ | ❌ |
-| Verifiable Secret Sharing (malicious dealer) | ❌ *(v2)* | n/a | ❌ | ❌ | rarely |
+| Verifiable Secret Sharing (malicious dealer) | ✅ *(opt-in pkg)* | n/a | ❌ | ❌ | rarely |
 | Independently audited | ❌ *(honest)* | varies | n/a | ✅ | varies |
 
 Where we deliberately **win**: memory hygiene, constant-time field math, a strict
 format we control, post-quantum share authentication, and first-class ceremony
-support. Where we **don't (yet)**: no VSS, and no independent audit — both stated
-plainly rather than glossed over.
+support. VSS (malicious-dealer detection) ships as the opt-in
+[`PostQuantum.SecretSharing.Vss`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md)
+package — Pedersen VSS over P-256 with optional ML-DSA-65 broadcast signing, kept out of
+the dependency-free core. Where we **don't (yet)**: no independent audit — stated plainly
+rather than glossed over (both packages are built to make one cheap; see the
+[VSS audit guide](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-AUDIT-GUIDE.md)).
 
 ---
 
@@ -507,12 +514,13 @@ them. Treat it as a well-built primitive pending independent review. See
 
 ## Status & roadmap
 
-**Current release: `2.0.1-preview.1`.** The information-theoretic core and the
-engineering around it are feature-complete; the API and the `.pqss` format are
-considered stable for this preview line and will not change without a SemVer
-signal. The core and the opt-in VSS package now share one version line (see
+**Current release: `2.1.0` (first stable).** The information-theoretic core and the
+engineering around it are feature-complete; the API and the `.pqss` format are stable and
+will not change without a SemVer signal. The core and the opt-in VSS package share one
+version line (see
 [`CHANGELOG.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/CHANGELOG.md));
-the on-disk `.pqss` core format remains **v1**.
+the on-disk `.pqss` core format remains **v1** (the VSS package adds **v2** records). The
+one item still open is an **independent audit** — stated plainly, not implied.
 
 | Area | Status |
 |------|:------:|
@@ -534,12 +542,17 @@ the on-disk `.pqss` core format remains **v1**.
 - **`2.x` (additive, non-breaking):** more ecosystem samples (EF Core master key,
   cloud-KMS hybrid), more published cross-implementation test vectors, and an
   optional `…Extensions` package for higher-level ceremony helpers.
-- **Verifiable Secret Sharing (opt-in, in preview now):** detect a
+- **Verifiable Secret Sharing (opt-in, shipped):** detect a
   *malicious dealer* — ships as the separate
-  [`PostQuantum.SecretSharing.Vss`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md) package (`2.0.1-preview.1`) —
-  Pedersen VSS over P-256, kept out of the dependency-free core. Secrecy stays
-  information-theoretic; only the dealer-fraud *detection* is computational (the
-  honest tradeoff, documented). Distributed proactive refresh is still planned. See
+  [`PostQuantum.SecretSharing.Vss`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md) package —
+  Pedersen VSS over P-256 with optional ML-DSA-65 broadcast signing, kept out of the
+  dependency-free core. Secrecy stays information-theoretic; only the dealer-fraud
+  *detection* is computational (the honest tradeoff, documented). The wire format is
+  pinned ([SPEC §v2](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/SPEC.md)),
+  vectors are published, and a dedicated
+  [audit guide](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-AUDIT-GUIDE.md)
+  ships with it; the one remaining step to stable is an independent audit. Distributed
+  proactive refresh is still planned. See
   [`docs/KNOWN-GAPS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/KNOWN-GAPS.md) §1.
 
 What this deliberately is **not**, now or planned: a KMS, a way to safely split
@@ -554,7 +567,7 @@ side channels and process memory dumps.
 - [`docs/THREAT-MODEL.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/THREAT-MODEL.md) — in/out of scope, plainly stated.
 - [`docs/KNOWN-GAPS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/KNOWN-GAPS.md) — real limitations, including the unflattering ones.
 - [`docs/AUDIT.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/AUDIT.md) — reviewer's audit kit: scope, repro, ranked risk areas, and a checklist (we want this cheap to audit).
-- [`docs/VSS-DESIGN.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md) — design + tradeoffs of the opt-in Verifiable Secret Sharing (Pedersen) preview package, and [`docs/test-vectors-vss.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/test-vectors-vss.md).
+- [`docs/VSS-DESIGN.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-DESIGN.md) — design + tradeoffs of the opt-in Verifiable Secret Sharing (Pedersen) package, with [`docs/VSS-AUDIT-GUIDE.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/VSS-AUDIT-GUIDE.md) (reviewer kit) and [`docs/test-vectors-vss.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/test-vectors-vss.md).
 - [`docs/OPERATIONS.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/OPERATIONS.md) — trustee ceremony guide.
 - [`docs/CASE-STUDY-signing-key.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/CASE-STUDY-signing-key.md) — a verified, reproducible ceremony protecting a code-signing key (with byte-identical + signature proofs).
 - [`docs/test-vectors.md`](https://github.com/systemslibrarian/PostQuantum.SecretSharing/blob/main/docs/test-vectors.md) — cross-implementation test vectors.

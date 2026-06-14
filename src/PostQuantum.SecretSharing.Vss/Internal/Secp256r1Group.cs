@@ -49,15 +49,38 @@ internal static class Secp256r1Group
     /// </summary>
     internal static ECPoint H { get; } = DeriveH();
 
+    // ── Randomness seam ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Fills a span with random bytes. Production always uses
+    /// <see cref="RandomNumberGenerator.Fill(Span{byte})"/>; the test project (via
+    /// <c>InternalsVisibleTo</c>) substitutes a deterministic filler to drive the
+    /// published reference vectors, exactly as the GF(2⁸) core does with
+    /// <c>ShamirCore.RandomFill</c>. There is <b>no public way to inject an RNG</b> —
+    /// this seam is assembly-internal only (see <c>docs/KNOWN-GAPS.md</c> §7).
+    /// </summary>
+    internal delegate void RandomFill(Span<byte> destination);
+
+    /// <summary>The randomness source. Defaults to the system CSPRNG; test-only override.</summary>
+    internal static RandomFill FillRandom { get; set; } = RandomNumberGenerator.Fill;
+
+    /// <summary>Returns <paramref name="count"/> random bytes from <see cref="FillRandom"/>.</summary>
+    internal static byte[] RandomBytes(int count)
+    {
+        byte[] b = new byte[count];
+        FillRandom(b);
+        return b;
+    }
+
     // ── Scalars ───────────────────────────────────────────────────────────────
 
-    /// <summary>A uniform scalar in [0, q) via rejection sampling over the system CSPRNG.</summary>
+    /// <summary>A uniform scalar in [0, q) via rejection sampling over <see cref="FillRandom"/>.</summary>
     internal static BigInteger RandomScalar()
     {
         Span<byte> buf = stackalloc byte[ScalarLength];
         while (true)
         {
-            RandomNumberGenerator.Fill(buf);
+            FillRandom(buf);
             var candidate = new BigInteger(1, buf.ToArray());
             if (candidate.CompareTo(Q) < 0)
                 return candidate;

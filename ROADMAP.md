@@ -4,7 +4,7 @@ This roadmap states intent, not promises. The guiding principle is the same one
 that governs the rest of the project: ship a small, correct, honestly-documented
 primitive, and only add scope that can be done to the same standard.
 
-## The core (current line — `2.0.1-preview.x`)
+## The core (current line — `2.1.0`)
 
 The core and the opt-in VSS package now share one version line (see
 [CHANGELOG.md](CHANGELOG.md)); the on-disk core `.pqss` format stays **v1**. The
@@ -21,12 +21,14 @@ information-theoretic core plus the engineering around it is complete:
 - `pqss` CLI, four samples, full docs (SPEC, THREAT-MODEL, KNOWN-GAPS,
   OPERATIONS, BENCHMARKS).
 
-**To reach a stable `2.x` release:**
+**Stable `2.1.0` is shipped.** The API and `.pqss` v1 format are frozen under SemVer.
+The following remain open as **post-stable hardening** — they sharpen confidence but are
+not blockers we are pretending to have met:
 
 - [ ] Independent review of the GF(2⁸) arithmetic and the CBOR parser/serializer
-      (the two highest-risk components). *Requires external reviewers.*
+      (the two highest-risk components). *Requires external reviewers.* The
+      [`AUDIT.md`](docs/AUDIT.md) kit exists to make this cheap.
 - [ ] At least one real-world dogfooding deployment, written up.
-- [ ] No format or public-API changes for a sustained RC period.
 
 ## Additive, non-breaking (`2.x`)
 
@@ -41,12 +43,22 @@ The hard problems the core deliberately does **not** solve (see KNOWN-GAPS.md):
 
 - **Verifiable Secret Sharing (Pedersen).** Detect a *malicious dealer* who issues
   inconsistent shares. This needs a prime-order group rather than GF(2⁸), so it is a
-  parallel scheme, not a patch to the core. **Now shipping in preview** as the opt-in
-  [`PostQuantum.SecretSharing.Vss`](docs/VSS-DESIGN.md) package (`2.0.1-preview.1`):
-  Pedersen VSS over P-256, `.pqss` v2 records, secrecy still information-theoretic,
-  dealer-fraud detection computational. Path to stable: ML-DSA-signed commitments,
-  published cross-impl vectors, a sample, and review. The GF(2⁸) core stays
-  dependency-free and unchanged.
+  parallel scheme, not a patch to the core. **Shipped** as the opt-in
+  [`PostQuantum.SecretSharing.Vss`](docs/VSS-DESIGN.md) package: Pedersen VSS over P-256,
+  `.pqss` v2 records, secrecy still information-theoretic, dealer-fraud detection
+  computational. The GF(2⁸) core stays dependency-free and unchanged.
+
+  **To reach a stable VSS release:**
+  - [x] ML-DSA-65 signing of the commitment broadcast (post-quantum dealer-auth of the pin).
+  - [x] `.pqss` v2 wire format pinned in [SPEC.md](docs/SPEC.md) §v2, enforced by `VssSpecExampleTests`.
+  - [x] Published cross-implementation vectors (`H` + a full worked record set) in
+        [test-vectors-vss.md](docs/test-vectors-vss.md).
+  - [x] Coverage-guided fuzzing extended to the v2 readers.
+  - [x] `MaliciousDealerDetected` sample.
+  - [x] Dedicated reviewer kit — [VSS-AUDIT-GUIDE.md](docs/VSS-AUDIT-GUIDE.md).
+  - [ ] Independent review of the protocol glue + the BouncyCastle trusted base.
+        *Requires external reviewers.*
+  - [ ] No format or public-API changes for a sustained RC period.
 - **Distributed proactive secret sharing.** Re-randomize shares across parties
   *without* reconstructing the secret (v1's `Refresh` is quorum-mediated). Still planned.
 - Possible additional authenticators behind `IShareAuthenticator` (the

@@ -7,6 +7,48 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.1.0] — 2026-06-14
+
+**First stable release.** Both packages leave prerelease and move (in lockstep) to
+`2.1.0`. The information-theoretic GF(2⁸) core and the opt-in Pedersen VSS package are
+considered feature-complete and audit-ready. The remaining open item — an independent
+third-party audit — is tracked honestly in [`KNOWN-GAPS.md`](docs/KNOWN-GAPS.md) §9 and
+[`ROADMAP.md`](ROADMAP.md); both packages are built to make that review cheap (see
+[`AUDIT.md`](docs/AUDIT.md) and [`VSS-AUDIT-GUIDE.md`](docs/VSS-AUDIT-GUIDE.md)). No
+breaking public-API change and no `.pqss` **v1** format change; the VSS additions below are
+confined to the opt-in `PostQuantum.SecretSharing.Vss` package and its **v2** records.
+
+### Added — VSS package (audit-readiness / path to stable)
+
+- **Post-quantum dealer authentication of the commitment broadcast.**
+  `PedersenVss.Split(secret, policy, IShareAuthenticator dealer)` signs the broadcast with
+  ML-DSA-65 (FIPS 204); `VssCommitments` gains `IsDealerSigned`, `DealerPublicKey`, and
+  `VerifyDealerSignature(pinnedKey)`. This authenticates the *pin itself*, so a trustee can
+  confirm the broadcast came from the pinned dealer and was not substituted. The
+  `vss-commitments` record gains optional auth fields (keys 9–11), mirroring the v1 share
+  format. Secrecy is unchanged (still information-theoretic); this is an additive,
+  computational *detection* layer, documented as such.
+- **`.pqss` v2 / VSS wire format is now specified and pinned.** New
+  [`SPEC.md`](docs/SPEC.md) §v2 (byte-level field tables, signing rule, reader order, group
+  and `H` derivation, verification equation), enforced by `VssSpecExampleTests` against a
+  reproducible worked vector.
+- **Published cross-implementation VSS vectors.** A full worked broadcast + share set,
+  derived from a fully-specified SHA-256 counter stream, added to
+  [`test-vectors-vss.md`](docs/test-vectors-vss.md) (alongside the pinned `H`).
+- **Coverage-guided fuzzing extended to the v2 readers** (`VssShare.Import`,
+  `VssCommitments.Import`), with matching v2 seeds.
+- **Dedicated reviewer kit:** [`VSS-AUDIT-GUIDE.md`](docs/VSS-AUDIT-GUIDE.md) — review
+  surface (~840 lines), trusted base, ranked risks, reproducible evidence, and a checklist.
+- Resolved the VSS open design questions (P-256 vs ristretto, optional vs required signing,
+  chunking) — now decided and frozen for the stable format. See
+  [`VSS-DESIGN.md`](docs/VSS-DESIGN.md) §9.
+
+### Notes
+
+- No change to the GF(2⁸) core or the on-disk **v1** `.pqss` format. The VSS additions are
+  confined to the opt-in `PostQuantum.SecretSharing.Vss` package. The remaining gate to a
+  stable VSS release is an independent audit (the code/docs are built to make it cheap).
+
 ## [2.0.1-preview.1] — 2026-06-13
 
 ### Changed
