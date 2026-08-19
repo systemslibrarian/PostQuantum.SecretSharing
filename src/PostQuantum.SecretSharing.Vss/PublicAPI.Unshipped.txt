@@ -1,1 +1,9 @@
 #nullable enable
+override PostQuantum.SecretSharing.Vss.VssSplit.Equals(object? obj) -> bool
+override PostQuantum.SecretSharing.Vss.VssSplit.GetHashCode() -> int
+override PostQuantum.SecretSharing.Vss.VssSplit.ToString() -> string!
+PostQuantum.SecretSharing.Vss.VssSplit.<Clone>$() -> PostQuantum.SecretSharing.Vss.VssSplit!
+PostQuantum.SecretSharing.Vss.VssSplit.Deconstruct(out PostQuantum.SecretSharing.Vss.VssShare![]! Shares, out PostQuantum.SecretSharing.Vss.VssCommitments! Commitments) -> void
+PostQuantum.SecretSharing.Vss.VssSplit.Equals(PostQuantum.SecretSharing.Vss.VssSplit? other) -> bool
+static PostQuantum.SecretSharing.Vss.VssSplit.operator !=(PostQuantum.SecretSharing.Vss.VssSplit? left, PostQuantum.SecretSharing.Vss.VssSplit? right) -> bool
+static PostQuantum.SecretSharing.Vss.VssSplit.operator ==(PostQuantum.SecretSharing.Vss.VssSplit? left, PostQuantum.SecretSharing.Vss.VssSplit? right) -> bool
