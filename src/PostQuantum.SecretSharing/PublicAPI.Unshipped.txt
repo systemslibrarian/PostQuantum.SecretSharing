@@ -1,5 +1,8 @@
 #nullable enable
 const PostQuantum.SecretSharing.DealerCommitment.Length = 32 -> int
+override PostQuantum.SecretSharing.SharePolicy.Equals(object? obj) -> bool
+override PostQuantum.SecretSharing.SharePolicy.GetHashCode() -> int
+override PostQuantum.SecretSharing.SharePolicy.ToString() -> string!
 PostQuantum.SecretSharing.DealerCommitment
 PostQuantum.SecretSharing.IShareAuthenticator
 PostQuantum.SecretSharing.IShareAuthenticator.Kind.get -> PostQuantum.SecretSharing.ShareAuthenticationKind
@@ -32,6 +35,9 @@ PostQuantum.SecretSharing.ShareFormatException
 PostQuantum.SecretSharing.ShareFormatException.ShareFormatException(string! message) -> void
 PostQuantum.SecretSharing.ShareFormatException.ShareFormatException(string! message, System.Exception! innerException) -> void
 PostQuantum.SecretSharing.SharePolicy
+PostQuantum.SecretSharing.SharePolicy.<Clone>$() -> PostQuantum.SecretSharing.SharePolicy!
+PostQuantum.SecretSharing.SharePolicy.Deconstruct(out int Threshold, out int TotalShares) -> void
+PostQuantum.SecretSharing.SharePolicy.Equals(PostQuantum.SecretSharing.SharePolicy? other) -> bool
 PostQuantum.SecretSharing.SharePolicy.SharePolicy(int Threshold, int TotalShares) -> void
 PostQuantum.SecretSharing.SharePolicy.Threshold.get -> int
 PostQuantum.SecretSharing.SharePolicy.Threshold.init -> void
@@ -58,6 +64,8 @@ static PostQuantum.SecretSharing.ShamirSecretSharing.Reconstruct(System.Collecti
 static PostQuantum.SecretSharing.ShamirSecretSharing.Refresh(System.Collections.Generic.IReadOnlyList<PostQuantum.SecretSharing.SecretShare!>! shares, PostQuantum.SecretSharing.SharePolicy? newPolicy = null, System.ReadOnlyMemory<byte>? expectedDealerPublicKey = null, PostQuantum.SecretSharing.IShareAuthenticator? newDealer = null) -> PostQuantum.SecretSharing.SecretShare![]!
 static PostQuantum.SecretSharing.ShamirSecretSharing.Split(System.ReadOnlySpan<byte> secret, PostQuantum.SecretSharing.SharePolicy! policy) -> PostQuantum.SecretSharing.SecretShare![]!
 static PostQuantum.SecretSharing.ShamirSecretSharing.Split(System.ReadOnlySpan<byte> secret, PostQuantum.SecretSharing.SharePolicy! policy, PostQuantum.SecretSharing.IShareAuthenticator! dealer) -> PostQuantum.SecretSharing.SecretShare![]!
+static PostQuantum.SecretSharing.SharePolicy.operator !=(PostQuantum.SecretSharing.SharePolicy? left, PostQuantum.SecretSharing.SharePolicy? right) -> bool
+static PostQuantum.SecretSharing.SharePolicy.operator ==(PostQuantum.SecretSharing.SharePolicy? left, PostQuantum.SecretSharing.SharePolicy? right) -> bool
 static PostQuantum.SecretSharing.WrappedSecret.Reconstruct(System.Collections.Generic.IReadOnlyList<PostQuantum.SecretSharing.SecretShare!>! shares, System.ReadOnlyMemory<byte> envelope, System.ReadOnlyMemory<byte>? expectedDealerPublicKey = null) -> PostQuantum.SecretSharing.ZeroizingBuffer!
 static PostQuantum.SecretSharing.WrappedSecret.Split(System.ReadOnlySpan<byte> secret, PostQuantum.SecretSharing.SharePolicy! policy) -> PostQuantum.SecretSharing.WrappedSplit!
 static PostQuantum.SecretSharing.WrappedSecret.Split(System.ReadOnlySpan<byte> secret, PostQuantum.SecretSharing.SharePolicy! policy, PostQuantum.SecretSharing.IShareAuthenticator! dealer) -> PostQuantum.SecretSharing.WrappedSplit!
