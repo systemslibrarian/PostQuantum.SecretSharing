@@ -7,6 +7,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [2.2.1] — 2026-08-20
+
+Patch: dependency maintenance. No public API change and no behavioural change; a drop-in over 2.2.0.
+
+### Changed
+
+- Test and CI toolchain updated — the dotnet dependency group (`Microsoft.NET.Test.Sdk` 18.9.0,
+  `FsCheck.Xunit` 3.3.4, `BouncyCastle.Cryptography` 2.7.0 in the Vss project and others) and the
+  GitHub Actions used by CI.
+- **Public API baseline updated for `Microsoft.CodeAnalysis.PublicApiAnalyzers` 5.6.0.** The newer
+  analyzer reports the compiler-generated members of positional records that 3.3.4 did not, so the
+  synthesized members of `SharePolicy` and `VssSplit` — `<Clone>$`, `Deconstruct`, `Equals`,
+  `GetHashCode`, `ToString`, `operator ==` and `operator !=` — are now declared in
+  `PublicAPI.Unshipped.txt`. These are pre-existing members of records shipped since 1.0.0; **no
+  public API changed**, the baseline simply predated an analyzer that reports them.
+
 ## [2.2.0] — 2026-06-14
 
 ### Added — new opt-in package: `PostQuantum.SecretSharing.Extensions`

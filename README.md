@@ -21,7 +21,7 @@ backup is a single point of failure or a single point of compromise.
 ```
 
 ```bash
-dotnet add package PostQuantum.SecretSharing --version 2.2.0
+dotnet add package PostQuantum.SecretSharing --version 2.2.1
 ```
 
 ```csharp
